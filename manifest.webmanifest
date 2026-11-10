@@ -1,0 +1,16 @@
+{
+ "name": "Wareneingang Schrauben",
+ "short_name": "Wareneingang",
+ "start_url": "./",
+ "display": "standalone",
+ "background_color": "#eceff2",
+ "theme_color": "#1f56b8",
+ "icons": [
+  {
+   "src": "icon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml",
+   "purpose": "any"
+  }
+ ]
+}

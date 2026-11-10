@@ -1,0 +1,1009 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Wareneingang Schrauben</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1f56b8"><link rel="icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: App mit fester Kopfzeile, drei Ansichten (Unterlagen · Kartons · Abgleich), Tab-Leiste unten.
+   Akzent = Kugelschreiber-Blau der handschriftlichen Kartonnummern. */
+:root{
+  --bg:#eceff2; --surface:#ffffff; --sunk:#f4f6f8; --ink:#141a20; --muted:#5a6673; --line:#d3dae1;
+  --accent:#1f56b8; --accent-ink:#ffffff; --accent-soft:#e3ebf9;
+  --ok:#1b7443; --ok-soft:#e2f2e8; --warn:#a35f00; --warn-soft:#fbefdc; --bad:#b9342a; --bad-soft:#f9e3e1; --info:#5a55b8; --info-soft:#ebeafa;
+  --f-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-head:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Roboto Mono",Menlo,monospace;
+  --r:10px; --nav-h:64px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1216; --surface:#161c22; --sunk:#11161b; --ink:#e5eaef; --muted:#93a0ac; --line:#28323c;
+  --accent:#6d9fff; --accent-ink:#0b1424; --accent-soft:#1b2a44;
+  --ok:#5cc98a; --ok-soft:#132a1d; --warn:#f0a94a; --warn-soft:#2e2312; --bad:#ff7d72; --bad-soft:#341815; --info:#a9a5ff; --info-soft:#22213d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1216; --surface:#161c22; --sunk:#11161b; --ink:#e5eaef; --muted:#93a0ac; --line:#28323c;
+  --accent:#6d9fff; --accent-ink:#0b1424; --accent-soft:#1b2a44;
+  --ok:#5cc98a; --ok-soft:#132a1d; --warn:#f0a94a; --warn-soft:#2e2312; --bad:#ff7d72; --bad-soft:#341815; --info:#a9a5ff; --info-soft:#22213d; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.45;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 24px)}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--surface);border-bottom:1px solid var(--line)}
+header.top .wrap{padding-block:10px;display:flex;gap:12px;align-items:center;justify-content:space-between}
+.brand{font-family:var(--f-head);font-weight:700;font-size:18px;letter-spacing:.01em;display:flex;align-items:center;gap:8px}
+.brand small{font-family:var(--f-ui);font-weight:500;font-size:12px;color:var(--muted)}
+.kpis{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.kpi{font-family:var(--f-head);font-weight:600;font-size:13px;padding:3px 8px;border-radius:999px;background:var(--sunk);border:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.kpi.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+main .wrap{padding-block:16px;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--f-head);text-wrap:balance;margin:0}
+h2{font-size:20px;font-weight:700}
+h3{font-size:16px;font-weight:600}
+.lead{color:var(--muted);margin:0;max-width:62ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.spread{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.mono{font-family:var(--f-mono);font-size:13px;letter-spacing:-.01em}
+.num{font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--f-head);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+button,.btn{font:600 15px/1 var(--f-ui);border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:11px 14px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;justify-content:center;position:relative}
+button:focus-visible,.btn:focus-within,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary,.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.ghost{background:transparent;border-color:transparent;color:var(--accent);padding-inline:8px}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.5;cursor:default}
+.btn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.big{width:100%;min-height:64px;font-size:17px;font-family:var(--f-head);letter-spacing:.01em}
+input[type=text],input[type=number],input:not([type]),select{font:inherit;font-size:15px;color:var(--ink);background:var(--sunk);border:1px solid var(--line);border-radius:7px;padding:9px 10px;min-height:42px;width:100%;min-width:0}
+input.mono{font-family:var(--f-mono);font-size:14px}
+input.missing{border-color:var(--bad);background:var(--bad-soft)}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:500;min-width:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;font:600 12px/1 var(--f-ui);padding:5px 9px;border-radius:999px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.info{background:var(--info-soft);color:var(--info)}
+.pill.plain{background:var(--sunk);color:var(--muted)}
+.tag-demo{font:600 11px/1 var(--f-ui);letter-spacing:.06em;text-transform:uppercase;color:var(--warn);background:var(--warn-soft);padding:4px 7px;border-radius:5px}
+.banner{border-radius:var(--r);padding:12px 14px;display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.banner.demo{background:var(--warn-soft);color:var(--ink);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent)}
+.banner.err{background:var(--bad-soft);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent)}
+.banner p{margin:0;max-width:60ch}
+/* Positionslisten */
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:10px 12px;border-top:1px solid var(--line);background:var(--surface)}
+.li:first-child{border-top:0}
+.li .art{font-family:var(--f-mono);font-size:13.5px;font-weight:600;overflow-wrap:anywhere}
+.li .sub{font-size:12.5px;color:var(--muted);grid-column:1/-1;overflow-wrap:anywhere}
+.li .q{font-family:var(--f-head);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.card>div:empty{display:none}
+.empty{padding:18px;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:8px}
+/* Edit-Zeilen */
+.editrow{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 44px;gap:6px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}
+.editrow>label:first-child{grid-column:1/-1}
+.editrow .meta{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted)}
+.editrow button.x{min-height:42px;padding:0;width:44px;color:var(--muted)}
+/* Kartons */
+.carton{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;padding:12px;border-top:1px solid var(--line);align-items:start}
+.carton:first-child{border-top:0}
+.thumb{width:64px;height:64px;border-radius:6px;background:var(--sunk);border:1px solid var(--line);object-fit:cover;display:flex;align-items:center;justify-content:center;font:700 18px var(--f-head);color:var(--accent)}
+.nr{font:700 22px/1 var(--f-head);color:var(--accent);font-variant-numeric:tabular-nums}
+.clines{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.cl{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+.cl .mono{overflow-wrap:anywhere}
+/* Abgleich */
+.filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.filters button{min-height:36px;padding:7px 12px;font-size:13px;border-radius:999px;white-space:nowrap}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rec{border-top:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:8px;border-left:4px solid transparent}
+.rec:first-child{border-top:0}
+.rec.bad{border-left-color:var(--bad)} .rec.warn{border-left-color:var(--warn)} .rec.info{border-left-color:var(--info)} .rec.ok{border-left-color:var(--ok)}
+.nums{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.nums div{background:var(--sunk);border-radius:6px;padding:6px 8px;min-width:0}
+.nums b{display:block;font:600 16px/1.2 var(--f-head);font-variant-numeric:tabular-nums}
+.nums span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.nums .hl b{color:var(--bad)}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.summary div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px}
+.summary b{display:block;font:700 24px/1 var(--f-head);font-variant-numeric:tabular-nums}
+.summary span{font-size:12px;color:var(--muted)}
+.summary .s-bad b{color:var(--bad)} .summary .s-warn b{color:var(--warn)} .summary .s-info b{color:var(--info)} .summary .s-ok b{color:var(--ok)}
+/* Fortschritt */
+.progress{height:6px;background:var(--sunk);border-radius:99px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+@media (prefers-reduced-motion: reduce){.progress i{transition:none}}
+/* Review-Panel */
+.sheet{position:fixed;inset:0;z-index:20;background:var(--bg);overflow-y:auto;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 90px)}
+.sheet .bar{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);z-index:2}
+.sheet .bar .wrap{padding-block:10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sheet .foot{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:3}
+.sheet .foot .wrap{padding-block:10px;display:flex;gap:8px}
+.sheet .foot button{flex:1}
+.preview{width:100%;max-height:260px;object-fit:contain;border-radius:8px;background:var(--sunk);border:1px solid var(--line)}
+details summary{cursor:pointer;color:var(--muted);font-size:13px}
+pre.raw{white-space:pre-wrap;font-family:var(--f-mono);font-size:12px;background:var(--sunk);padding:10px;border-radius:6px;max-height:220px;overflow:auto;margin:6px 0 0}
+.warnlist{display:flex;flex-direction:column;gap:6px}
+.warnlist div{font-size:13.5px;padding:8px 10px;border-radius:6px;background:var(--warn-soft)}
+.warnlist div.bad{background:var(--bad-soft)}
+/* Tab-Leiste */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs .wrap{display:grid;grid-template-columns:repeat(3,1fr);height:var(--nav-h)}
+nav.tabs a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:var(--muted);font:600 13px var(--f-head);letter-spacing:.02em;position:relative}
+nav.tabs a svg{width:22px;height:22px}
+nav.tabs a[aria-current="page"]{color:var(--accent)}
+nav.tabs a[aria-current="page"]::after{content:"";position:absolute;top:0;left:25%;right:25%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font:700 11px/18px var(--f-ui);text-align:center}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 14px);z-index:30;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;font-weight:500;max-width:calc(100% - 32px)}
+.confirm{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:8px;background:var(--bad-soft);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent)}
+@media (max-width:420px){.summary{grid-template-columns:repeat(2,1fr)} .nums{grid-template-columns:repeat(2,1fr)} .grid3{grid-template-columns:1fr 1fr}}
+</style>
+
+<header class="top"><div class="wrap">
+  <div class="brand">Wareneingang <small id="hdrSub">Schrauben</small></div>
+  <div class="kpis" id="kpis"></div>
+</div></header>
+
+<main>
+  <!-- ANSICHT: Unterlagen -->
+  <section id="v-unterlagen" class="view"><div class="wrap">
+    <div id="demoBanner"></div>
+    <div>
+      <h2>Unterlagen</h2>
+      <p class="lead">Lieferschein einlesen, dann die Kartons erfassen. Alles bleibt auf diesem Gerät.</p>
+    </div>
+
+    <div class="card" id="cardNote">
+      <div class="spread"><h3>1 · Lieferschein</h3><span class="pill plain" id="noteCount">leer</span></div>
+      <p class="muted small" style="margin:0">Gescanntes PDF (auch mehrseitig) oder Fotos. Gelesen werden „Unsere Artikelnummer“, Liefermenge und VE.</p>
+      <div class="row">
+        <label class="btn primary"><input id="notePdf" type="file" accept="application/pdf,image/*" multiple>Lieferschein laden</label>
+        <button class="ghost" id="noteAdd">+ Position</button>
+      </div>
+      <div id="noteHead" class="small muted"></div>
+      <div id="noteProg"></div>
+      <div id="noteList"></div>
+    </div>
+
+    <div class="card">
+      <h3>2 · Packstücke</h3>
+      <div class="grid2">
+        <label class="f" for="expected">Umkartons laut Frachtbrief<input id="expected" type="number" inputmode="numeric" min="0" placeholder="z. B. 100"></label>
+        <div></div>
+      </div>
+    </div>
+
+    <div class="card" id="cardOrder" hidden>
+      <div class="spread"><h3>Bestellung <span class="muted small" style="font-weight:500">optional</span></h3><span class="pill plain" id="orderCount">leer</span></div>
+      <p class="muted small" style="margin:0">Nicht nötig für die Vollständigkeitsprüfung. Nur sinnvoll, wenn die Bestellung die Lieferanten-Artikelnummer (wie auf dem Etikett) enthält. Sonst den Abgleich exportieren und später in Excel gegen die Bestellung prüfen.</p>
+      <div class="row">
+        <label class="btn"><input id="orderXls" type="file" accept=".xlsx,.xls,.csv,text/csv">Excel / CSV laden</label>
+        <label class="btn"><input id="orderPdf" type="file" accept="application/pdf,image/*">PDF / Foto</label>
+        <button class="ghost" id="orderAdd">+ Position</button>
+      </div>
+      <div id="orderMap"></div>
+      <div id="orderProg"></div>
+      <div id="orderList"></div>
+    </div>
+
+    <div class="card">
+      <h3>Lieferung</h3>
+      <div class="row">
+        <button class="danger" id="resetBtn">Neue Lieferung beginnen</button>
+      </div>
+      <div id="resetConfirm"></div>
+    </div>
+  </div></section>
+
+  <!-- ANSICHT: Kartons -->
+  <section id="v-kartons" class="view" hidden><div class="wrap">
+    <div class="spread">
+      <div><h2>Kartons</h2><p class="lead" id="cartonLead">Etikett fotografieren, Erkennung prüfen, speichern.</p></div>
+    </div>
+    <label class="btn primary big" for="camInput"><input id="camInput" type="file" accept="image/*" capture="environment">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      Karton-Etikett fotografieren</label>
+    <div class="row">
+      <label class="btn"><input id="galInput" type="file" accept="image/*" multiple>Fotos aus Galerie</label>
+      <button id="manualCarton">Ohne Foto erfassen</button>
+    </div>
+    <div id="batchProg"></div>
+    <div class="card" style="padding:0;gap:0" id="cartonList"></div>
+  </div></section>
+
+  <!-- ANSICHT: Abgleich -->
+  <section id="v-abgleich" class="view" hidden><div class="wrap">
+    <div><h2>Abgleich</h2><p class="lead">Lieferschein gegen gezählte Kartons, pro Artikel. Soll ist die Liefermenge laut Lieferschein.</p></div>
+    <div class="summary" id="summary"></div>
+    <div class="filters" id="filters" role="group" aria-label="Filter"></div>
+    <div class="card" style="padding:0;gap:0" id="recList"></div>
+    <div class="card">
+      <h3>Ergebnis sichern</h3>
+      <div class="row">
+        <button class="primary" id="expXlsx">Excel-Datei</button>
+        <button id="expCsv">CSV</button>
+        <button id="expText">Abweichungen kopieren</button>
+      </div>
+      <p class="small muted" style="margin:0">„Abweichungen kopieren“ legt eine Textliste in die Zwischenablage, z. B. für eine Mail an den Lieferanten.</p>
+      <textarea id="copyFallback" hidden readonly style="width:100%;min-height:140px;font:13px var(--f-mono);background:var(--sunk);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px"></textarea>
+    </div>
+  </div></section>
+</main>
+
+<nav class="tabs" aria-label="Ansichten"><div class="wrap">
+  <a href="#unterlagen" data-v="unterlagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>Unterlagen</a>
+  <a href="#kartons" data-v="kartons"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>Kartons</a>
+  <a href="#abgleich" data-v="abgleich"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"/><path d="M15 17l2 2 4-4"/></svg>Abgleich<span class="badge" id="navBadge" hidden></span></a>
+</div></nav>
+
+<div id="sheetHost"></div>
+<datalist id="artList"></datalist>
+
+<script>window.__WE_OCR__={"worker":"ocr-worker.js","core":".","lang":"."};window.__WE_STANDALONE__=true;</script>
+<script src="lib/tesseract.min.js"></script>
+<script src="lib/pdf.min.js"></script>
+<script src="lib/pdf.worker.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script>
+/* Parser + Abgleich-Logik für Wareneingang (Etikett, Lieferschein, Bestellung).
+   Reine Funktionen, im Browser und in Node testbar. */
+(function (root) {
+  'use strict';
+
+  // ---------- Hilfsfunktionen ----------
+  function cleanArt(s) {
+    return String(s || '').toUpperCase().replace(/[–—_]/g, '-').replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '');
+  }
+  // OCR-Verwechsler auf gemeinsame Klassen abbilden
+  const CONF = { O: '0', D: '0', Q: '0', '5': 'S', '8': 'S', B: 'S', I: '1', L: '1', '7': '1', T: '1', Z: '2', G: '6' };
+  function skel(s) {
+    return cleanArt(s).replace(/-/g, '').split('').map(c => CONF[c] || c).join('');
+  }
+  function lev(a, b) {
+    const m = a.length, n = b.length;
+    if (!m) return n; if (!n) return m;
+    let prev = new Array(n + 1), cur = new Array(n + 1);
+    for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++) {
+      cur[0] = i;
+      for (let j = 1; j <= n; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      }
+      [prev, cur] = [cur, prev];
+    }
+    return prev[n];
+  }
+  function num(s) {
+    // "10.000" -> 10000, "1000.00" -> 1000, "3,5" -> 3.5
+    s = String(s).trim();
+    if (/^\d{1,3}(\.\d{3})+$/.test(s)) return parseInt(s.replace(/\./g, ''), 10);
+    if (/^\d+[.,]\d{2}$/.test(s)) return Math.round(parseFloat(s.replace(',', '.')));
+    if (/^\d{1,3}(\.\d{3})+,\d+$/.test(s)) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+    return parseFloat(s.replace(',', '.'));
+  }
+  function dim(line) {
+    const m = String(line).match(/(\d{1,2})\s*[,.]\s*(\d)\s*\.?\s*[xX×]\s*(\d{1,4})/);
+    return m ? `${m[1]},${m[2]} x ${m[3]}` : '';
+  }
+
+  // Artikelnummer-artiges Muster auf Etikett, z. B. 123456S100 - 1234567 - 1
+  const ART_RE = /([A-Z0-9](?:[A-Z0-9]| (?=[A-Z0-9])){5,13})\s*[-–—_.]{1,3}\s*([A-Z0-9]{5,9})\s*[-–—_.]{1,3}\s*([0-9A-Z])\b/i;
+  const QTY_RE = /(\d{1,3}(?:\.\d{3})*|\d+)[.,](\d{2})\s*\S{0,2}\s*St[kK]/;
+  const VE_RE = /\bV\s?E\s*[:.]?\s*(\d{1,5})\b/;
+
+  // ---------- Etikett ----------
+  function parseLabel(text) {
+    const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const ev = []; // {type:'art', raw, dim, qty, idx} | {type:'qty', qty, idx}
+    lines.forEach((l, idx) => {
+      const am = l.match(ART_RE);
+      const qm = l.match(QTY_RE);
+      const isDescr = /[a-zäöü]{4,}/.test(l);
+      if (am && !isDescr) {
+        ev.push({ type: 'art', raw: `${am[1].replace(/ /g,'')}-${am[2]}-${am[3]}`, dim: dim(l.slice(am.index + am[0].length)) || dim(l), qty: qm ? num(qm[1] + '.' + qm[2]) : null, ve: null, idx });
+      } else if (qm && !isDescr) {
+        ev.push({ type: 'qty', qty: num(qm[1] + '.' + qm[2]), idx, used: false });
+      } else {
+        const vm = l.match(VE_RE);
+        if (vm) {
+          for (let i = ev.length - 1; i >= 0; i--) if (ev[i].type === 'art') { if (ev[i].ve == null) ev[i].ve = parseInt(vm[1], 10); break; }
+        }
+      }
+    });
+    const arts = ev.filter(e => e.type === 'art');
+    const qtys = ev.filter(e => e.type === 'qty');
+    arts.forEach(a => {
+      if (a.qty != null) return;
+      let best = null, bd = 1e9;
+      qtys.forEach(q => { if (!q.used) { const d = Math.abs(q.idx - a.idx); if (d < bd && d <= 2) { bd = d; best = q; } } });
+      if (best) { best.used = true; a.qty = best.qty; }
+    });
+    return arts.map(a => ({ raw: a.raw, dim: a.dim, qty: a.qty, ve: a.ve }));
+  }
+
+  // Kopf des Etiketts: Paketnummer + Auftragsnummer
+  function parseLabelHead(text) {
+    const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const out = { paket: '', auftrag: '' };
+    const find = (kw, re) => {
+      for (let i = 0; i < lines.length; i++) {
+        if (kw.test(lines[i])) {
+          for (let j = i; j <= Math.min(i + 2, lines.length - 1); j++) {
+            const m = lines[j].replace(/[|]/g, ' ').match(re);
+            if (m) return m[1];
+          }
+        }
+      }
+      return '';
+    };
+    out.paket = find(/[PF]?ak\w{0,3}\s*nu?m+er|Paket/i, /\b(\d{8,12})\b/);
+    out.auftrag = find(/Auf\w*\s*nu?m+er|Auftrag/i, /\b(\d{6,8})\b/);
+    if (out.auftrag && out.auftrag === out.paket) out.auftrag = '';
+    return out;
+  }
+
+  // ---------- Lieferschein ----------
+  function parseDeliveryNote(text) {
+    const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const head = {};
+    const out = [];
+    let cur = null;
+    lines.forEach(l => {
+      const lm = l.match(/Lieferung\s*[:;]?\s*(\d{5,})\s*,?\s*(\d{1,2}\.\d{1,2}\.\d{2,4})?/i);
+      if (lm) { head.lieferung = lm[1]; if (lm[2]) head.datum = lm[2]; }
+      const pm = l.match(/^\s*(\d{1,4})\s+(\d{8,14})\b(.*)$/);
+      if (pm) {
+        if (cur) out.push(cur);
+        const rest = pm[3];
+        const qs = [...rest.matchAll(/(\d{1,3}(?:\.\d{3})+|\d+)(?:,\d+)?\s*St[kK]/g)].map(m => num(m[1]));
+        cur = { pos: pm[1], ean: pm[2], dim: dim(rest), bestellt: qs.length ? qs[0] : null, menge: qs.length ? qs[qs.length - 1] : null, ve: null, art: '', text: '' };
+        return;
+      }
+      if (!cur) return;
+      const am = l.match(/Unsere\s*Artikel\s*n?\w*\s*[:;.]?\s*([A-Z0-9][A-Z0-9 \-–—_]{6,})/i);
+      if (am) { cur.art = cleanArt(am[1].split(/\s{2,}/)[0]); return; }
+      const om = l.match(/Unsere\s*Auftrags\w*\s*[:;.]?\s*(\d{5,9})/i);
+      if (om) { cur.auftrag = om[1]; (head.auftraege = head.auftraege || []).includes(om[1]) || head.auftraege.push(om[1]); return; }
+      const vm = l.match(VE_RE);
+      if (vm && cur.ve == null) cur.ve = parseInt(vm[1], 10);
+      if (!cur.text && /[a-zäöü]{4,}/.test(l) && !/:/.test(l.slice(0, 25))) cur.text = l.slice(0, 120);
+    });
+    if (cur) out.push(cur);
+    return { head, rows: out };
+  }
+
+  // ---------- Bestellung (generisch, aus Text) ----------
+  function parseOrderText(text, refs) {
+    const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const out = [];
+    lines.forEach(l => {
+      const am = l.match(ART_RE) || l.match(/\b([A-Z0-9]{5,}[A-Z][A-Z0-9]*-[A-Z0-9-]{4,})\b/i);
+      const qm = l.match(/(\d{1,3}(?:\.\d{3})+|\d+)(?:,\d+)?\s*(St[kK]|Stück|VE|Pak)/);
+      if (am && qm) {
+        const raw = am[3] !== undefined && am[2] ? `${am[1]}-${am[2]}-${am[3]}` : am[1];
+        let qty = num(qm[1]);
+        out.push({ art: cleanArt(raw), qty, unit: /VE|Pak/i.test(qm[2]) ? 'VE' : 'Stk', dim: dim(l) });
+      }
+    });
+    return out;
+  }
+
+  // ---------- Zuordnung gegen Referenzartikel ----------
+  // refs: [{art, dim}] -> liefert {art, conf:'exakt'|'korrigiert'|'unsicher'|'unbekannt', dist}
+  function matchArticle(raw, d, refs) {
+    const c = cleanArt(raw);
+    if (!refs || !refs.length) return { art: c, conf: 'unbekannt', dist: null };
+    const exact = refs.find(r => cleanArt(r.art) === c);
+    if (exact) return { art: exact.art, conf: 'exakt', dist: 0 };
+    const s = skel(c);
+    let best = null, bd = 1e9, second = 1e9;
+    refs.forEach(r => {
+      let dd = lev(s, skel(r.art));
+      if (d && r.dim && normDim(d) === normDim(r.dim)) dd -= 0.5; // Abmessung als Bonus
+      if (dd < bd) { second = bd; bd = dd; best = r; } else if (dd < second) second = dd;
+    });
+    const lim = Math.max(2, Math.round(s.length * 0.25));
+    if (best && bd <= lim) {
+      const clear = second - bd >= 1.5;
+      return { art: best.art, conf: bd <= 1 && clear ? 'korrigiert' : 'unsicher', dist: bd };
+    }
+    return { art: c, conf: 'unbekannt', dist: bd };
+  }
+  function normDim(d) { return String(d || '').replace(/\s/g, '').replace('.', ',').toLowerCase(); }
+
+  // ---------- Dreifach-Abgleich ----------
+  // order: [{art, qty(Stk)}], note: [{art, menge, ve, dim, text}], cartons: [{nr, lines:[{art, qty, ve}]}]
+  function reconcile(order, note, cartons, meta) {
+    const map = new Map();
+    const get = a => { const k = cleanArt(a); if (!map.has(k)) map.set(k, { art: a, dim: '', text: '', ve: null, best: null, ls: null, ist: 0, pakete: 0, kartons: new Set(), inOrder: false, inNote: false }); return map.get(k); };
+    (order || []).forEach(o => { const r = get(o.art); r.best = (r.best || 0) + (o.qty || 0); r.inOrder = true; if (o.dim && !r.dim) r.dim = o.dim; });
+    (note || []).forEach(n => { const r = get(n.art); r.ls = (r.ls || 0) + (n.menge || 0); r.inNote = true; if (n.dim) r.dim = n.dim; if (n.text) r.text = n.text; if (n.ve) r.ve = n.ve; });
+    (cartons || []).forEach(c => (c.lines || []).forEach(l => {
+      const r = get(l.art); r.ist += l.qty || 0; r.kartons.add(c.nr);
+      const ve = l.ve || r.ve; if (ve) r.pakete += (l.qty || 0) / ve;
+      if (!r.ve && l.ve) r.ve = l.ve; if (!r.dim && l.dim) r.dim = l.dim;
+    }));
+    const hasOrder = (order || []).length > 0, hasNote = (note || []).length > 0;
+    const rows = [...map.values()].map(r => {
+      const soll = hasNote ? r.ls : r.best;
+      let status, level;
+      if (hasNote && !r.inNote && r.ist > 0) { status = 'Nicht auf Lieferschein'; level = 'bad'; }
+      else if (hasOrder && !r.inOrder && (r.inNote || r.ist > 0)) { status = 'Nicht bestellt'; level = 'bad'; }
+      else if (soll != null && r.ist < soll) { status = r.ist === 0 ? 'Fehlt komplett' : `Fehlt ${fmt(soll - r.ist)} Stk`; level = r.ist === 0 ? 'bad' : 'warn'; }
+      else if (soll != null && r.ist > soll) { status = `Mehr ${fmt(r.ist - soll)} Stk`; level = 'warn'; }
+      else if (hasOrder && hasNote && r.best !== r.ls) { status = r.ls < r.best ? 'Teillieferung' : 'Mehr geliefert als bestellt'; level = 'info'; }
+      else { status = 'OK'; level = 'ok'; }
+      if (level === 'ok' && hasOrder && hasNote && r.best !== r.ls) { status = 'Teillieferung'; level = 'info'; }
+      return { art: r.art, dim: r.dim, text: r.text, ve: r.ve, bestellt: r.best, lieferschein: r.ls, ist: r.ist, pakete: r.ve ? r.pakete : null, kartons: [...r.kartons].sort((a, b) => (+a || 0) - (+b || 0)), status, level };
+    });
+    const order_ = { bad: 0, warn: 1, info: 2, ok: 3 };
+    rows.sort((a, b) => order_[a.level] - order_[b.level] || a.art.localeCompare(b.art));
+    return rows;
+  }
+  function fmt(n) { return (Math.round(n * 100) / 100).toLocaleString('de-DE'); }
+
+  // Doppelt erfasste Kartons: gleicher Inhalt
+  function cartonSignature(c) {
+    return (c.lines || []).map(l => cleanArt(l.art) + ':' + l.qty).sort().join('|');
+  }
+
+  const api = { parseLabelHead, cleanArt, skel, lev, num, dim, parseLabel, parseDeliveryNote, parseOrderText, matchArticle, reconcile, cartonSignature, fmt };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.WEParser = api;
+})(typeof self !== 'undefined' ? self : this);
+
+</script>
+<script>
+(function(){
+'use strict';
+const P = window.WEParser;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => n == null || n === '' || isNaN(n) ? '–' : (Math.round(n*100)/100).toLocaleString('de-DE');
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const OCR = window.__WE_OCR__; // Pfade zum Worker/Core
+
+// ---------------- Zustand ----------------
+const KEY = 'wareneingang-v1';
+function demoState(){
+  // Erfundene Beispieldaten (keine echten Artikel, Lieferungen oder Kunden)
+  const note = [
+    {pos:'10',ean:'',art:'100101S100-0600600-1',dim:'6,0 x 60',menge:1000,ve:10,text:'Distanzschraube Holz-Holz, Senkkopf, TX25, verzinkt'},
+    {pos:'20',ean:'',art:'200202V200-0400400-1',dim:'4,0 x 40',menge:3200,ve:200,text:'Spanplattenschraube Senkkopf, TX, Teilgewinde, Edelstahl A2'},
+    {pos:'30',ean:'',art:'300303S300-0390110-1',dim:'3,9 x 11',menge:8400,ve:200,text:'Profilverbinder Flachkopf, PH, Feingewinde, phosphatiert'},
+    {pos:'40',ean:'',art:'300300S300-0390350-1',dim:'3,9 x 35',menge:5000,ve:1000,text:'Schnellbauschraube Trompetenkopf, PH, Feingewinde'},
+    {pos:'50',ean:'',art:'100101S100-0601000-1',dim:'6,0 x 100',menge:100,ve:50,text:'Distanzschraube Holz-Holz, Senkkopf, TX25, verzinkt'},
+    {pos:'60',ean:'',art:'400404S400-0801600-1',dim:'8,0 x 160',menge:100,ve:50,text:'Tellerkopf-Holzbauschraube, TX40, Teilgewinde'},
+    {pos:'70',ean:'',art:'500505S500-0500600-1',dim:'5,0 x 60',menge:3200,ve:200,text:'Spanplattenschraube Senkkopf, TX, Teilgewinde, verzinkt gelb'}
+  ];
+  const cartons = [
+    {id:'d1',nr:'12',paket:'',auftrag:'',codes:[],ts:Date.now()-60000,lines:[
+      {art:'300303S300-0390110-1',raw:'3003038300-0390110-1',qty:1000,ve:200,conf:'korrigiert'},
+      {art:'300300S300-0390350-1',raw:'3003008300-0390350-1',qty:5000,ve:1000,conf:'korrigiert'},
+      {art:'300303S300-0390110-1',raw:'3OO3O3SHF-0390110-1',qty:3200,ve:200,conf:'unsicher'},
+      {art:'100101S100-0601000-1',raw:'1001018100-0801000-1',qty:100,ve:50,conf:'unsicher'},
+      {art:'400404S400-0801600-1',raw:'4004048400-0801600-1',qty:100,ve:50,conf:'korrigiert'}]},
+    {id:'d2',nr:'7',paket:'',auftrag:'',codes:[],ts:Date.now()-30000,lines:[
+      {art:'100101S100-0600600-1',raw:'1001018100-0600600-1',qty:1000,ve:10,conf:'korrigiert'},
+      {art:'200202V200-0400400-1',raw:'200202V200-0400400-1',qty:3200,ve:200,conf:'exakt'},
+      {art:'300303S300-0390110-1',raw:'3003035300-0390110-1',qty:4200,ve:200,conf:'korrigiert'}]}
+  ];
+  return {demo:true, order:{rows:[],source:''}, note:{rows:note,head:{lieferung:'Beispiel'},source:'Beispiel'}, cartons, expected:3};
+}
+function emptyState(){ return {demo:false, order:{rows:[],source:''}, note:{rows:[],head:{},source:''}, cartons:[], expected:null}; }
+let S;
+try { const raw = localStorage.getItem(KEY); S = raw ? JSON.parse(raw) : demoState(); } catch(e){ S = demoState(); }
+let saveT = 0;
+function save(){ clearTimeout(saveT); saveT = setTimeout(()=>{ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }, 150); }
+
+// Vorschaubilder in IndexedDB (optional)
+const thumbs = new Map();
+let idb = null;
+function idbOpen(){ return new Promise(res=>{ try{ const r = indexedDB.open('wareneingang-thumbs',1); r.onupgradeneeded=()=>r.result.createObjectStore('t'); r.onsuccess=()=>{idb=r.result;res(idb)}; r.onerror=()=>res(null);}catch(e){res(null)} }); }
+function idbPut(k,v){ try{ if(!idb) return; idb.transaction('t','readwrite').objectStore('t').put(v,k);}catch(e){} }
+function idbDel(k){ try{ if(!idb) return; idb.transaction('t','readwrite').objectStore('t').delete(k);}catch(e){} }
+function idbClear(){ try{ if(!idb) return; idb.transaction('t','readwrite').objectStore('t').clear();}catch(e){} }
+function idbLoadAll(){ return new Promise(res=>{ try{ if(!idb) return res(); const st=idb.transaction('t').objectStore('t'); const rq=st.openCursor(); rq.onsuccess=()=>{const c=rq.result; if(c){thumbs.set(c.key,c.value); c.continue();} else res();}; rq.onerror=()=>res(); }catch(e){res()} }); }
+
+// ---------------- Referenzen + Abgleich ----------------
+function refs(){
+  const m = new Map();
+  (S.note.rows||[]).forEach(r=>{ if(r.art) m.set(P.cleanArt(r.art), {art:r.art, dim:r.dim, ve:r.ve, text:r.text}); });
+  (S.order.rows||[]).forEach(r=>{ const k=P.cleanArt(r.art); if(r.art && !m.has(k)) m.set(k,{art:r.art, dim:r.dim, ve:r.ve||null, text:r.text||''}); });
+  return [...m.values()];
+}
+function veOf(art){ const k=P.cleanArt(art); const r=refs().find(x=>P.cleanArt(x.art)===k); return r && r.ve || null; }
+function orderInStk(){
+  return (S.order.rows||[]).map(o=>{ if(o.unit==='VE'){ const ve=veOf(o.art); return {...o, qty: ve ? o.qty*ve : o.qty, veMissing: !ve}; } return o; });
+}
+function reconcile(){
+  const note = (S.note.rows||[]).map(n=>({art:n.art, menge:+n.menge||0, ve:+n.ve||null, dim:n.dim, text:n.text}));
+  const cartons = S.cartons.map(c=>({nr:c.nr||'?', lines:c.lines.filter(l=>l.art).map(l=>({art:l.art, qty:+l.qty||0, ve:+l.ve||veOf(l.art)}))}));
+  return P.reconcile(orderInStk(), note, cartons);
+}
+
+// ---------------- Rendering ----------------
+let filter = 'alle';
+function render(){
+  renderKpis(); renderDocs(); renderCartons(); renderRec(); renderDatalist();
+}
+function renderKpis(){
+  const rows = reconcile();
+  const bad = rows.filter(r=>r.level==='bad'||r.level==='warn').length;
+  const ok = rows.filter(r=>r.level==='ok').length;
+  const exp = S.expected ? ` / ${S.expected}` : '';
+  $('#kpis').innerHTML = `<span class="kpi">${S.cartons.length}${exp} Kartons</span>` +
+    (rows.length ? `<span class="kpi ${bad?'bad':'ok'}">${bad ? bad+' offen' : 'alles OK'}</span>` : '');
+  const b = $('#navBadge'); b.hidden = !bad; b.textContent = bad;
+  $('#hdrSub').textContent = S.note.head && S.note.head.lieferung ? 'Lieferung ' + S.note.head.lieferung : 'Schrauben';
+}
+function renderDocs(){
+  $('#demoBanner').innerHTML = S.demo ? `<div class="banner demo"><p><b>Beispieldaten.</b> Die App zeigt eine erfundene Muster-Lieferung. Für die echte Lieferung „Neue Lieferung beginnen“ antippen.</p><button id="demoClear">Beispiel entfernen</button></div>` : '';
+  const dc = $('#demoClear'); if (dc) dc.onclick = () => { resetAll(); toast('Beispiel entfernt'); };
+  // Bestellung
+  const o = S.order.rows;
+  $('#orderCount').textContent = o.length ? `${o.length} Positionen` : 'leer';
+  $('#orderCount').className = 'pill ' + (o.length ? 'ok' : 'plain');
+  $('#orderList').innerHTML = o.length ? editRows(o, 'order') : `<div class="empty">Noch keine Bestellung geladen.</div>`;
+  // Lieferschein
+  const n = S.note.rows;
+  $('#noteCount').textContent = n.length ? `${n.length} Positionen` : 'leer';
+  $('#noteCount').className = 'pill ' + (n.length ? 'ok' : 'plain');
+  const h = S.note.head || {};
+  $('#noteHead').innerHTML = (h.lieferung||h.datum||h.auftraege) ? [h.lieferung && 'Lieferung '+esc(h.lieferung), h.datum && 'vom '+esc(h.datum), h.auftraege && h.auftraege.length && 'Auftrag '+esc(h.auftraege.join(', '))].filter(Boolean).join(' · ') : '';
+  $('#noteList').innerHTML = n.length ? editRows(n, 'note') : `<div class="empty">Noch kein Lieferschein geladen.</div>`;
+  $('#expected').value = S.expected ?? '';
+  bindEditRows();
+}
+function editRows(rows, kind){
+  const qKey = kind==='order' ? 'qty' : 'menge';
+  return `<div style="display:flex;flex-direction:column;gap:8px">` + rows.map((r,i)=>`
+    <div class="editrow" data-kind="${kind}" data-i="${i}">
+      <label class="f">Artikelnummer<input class="mono" data-k="art" value="${esc(r.art)}" autocomplete="off" spellcheck="false" id="${kind}-art-${i}"></label>
+      <label class="f">${kind==='order' ? 'Menge ('+(r.unit==='VE'?'VE':'Stk')+')' : 'Liefermenge Stk'}<input type="number" inputmode="numeric" data-k="${qKey}" value="${esc(r[qKey])}" class="${r[qKey]==null||r[qKey]===''?'missing':''}" id="${kind}-q-${i}"></label>
+      <label class="f">VE<input type="number" inputmode="numeric" data-k="ve" value="${esc(r.ve??'')}" id="${kind}-ve-${i}"></label>
+      <button class="x" data-del aria-label="Position löschen">✕</button>
+      ${(r.dim||r.text) ? `<div class="meta">${r.dim?`<b class="mono">${esc(r.dim)}</b>`:''}<span>${esc((r.text||'').slice(0,90))}</span></div>`:''}
+    </div>`).join('') + `</div>`;
+}
+function bindEditRows(){
+  document.querySelectorAll('.editrow').forEach(el=>{
+    const kind = el.dataset.kind, i = +el.dataset.i;
+    const arr = kind==='order' ? S.order.rows : S.note.rows;
+    el.querySelectorAll('input').forEach(inp=>{
+      inp.onchange = () => { const k = inp.dataset.k; let v = inp.value.trim(); if (k==='art') v = P.cleanArt(v); else v = v===''?null:+v; arr[i][k]=v; save(); render(); };
+    });
+    el.querySelector('[data-del]').onclick = () => { arr.splice(i,1); save(); render(); };
+  });
+}
+function renderDatalist(){
+  $('#artList').innerHTML = refs().map(r=>`<option value="${esc(r.art)}">${esc(r.dim||'')} ${esc((r.text||'').slice(0,40))}</option>`).join('');
+}
+const CONF_LBL = {exakt:['ok','exakt'], korrigiert:['info','korrigiert'], unsicher:['warn','prüfen'], unbekannt:['bad','unbekannt'], manuell:['plain','manuell']};
+function renderCartons(){
+  const list = [...S.cartons].sort((a,b)=>b.ts-a.ts);
+  const exp = S.expected ? ` von ${S.expected}` : '';
+  $('#cartonLead').textContent = list.length ? `${list.length}${exp} Kartons erfasst. Neueste oben.` : 'Etikett fotografieren, Erkennung prüfen, speichern.';
+  if (!list.length){ $('#cartonList').innerHTML = `<div class="empty" style="border:0">Noch keine Kartons erfasst. Tippe oben auf „Karton-Etikett fotografieren“.</div>`; return; }
+  $('#cartonList').innerHTML = list.map(c=>{
+    const t = thumbs.get(c.id);
+    const flags = c.lines.filter(l=>l.conf==='unsicher'||l.conf==='unbekannt'||!l.qty).length;
+    return `<div class="carton">
+      ${t ? `<img class="thumb" src="${t}" alt="Etikett Karton ${esc(c.nr)}">` : `<div class="thumb">${esc(c.nr||'?')}</div>`}
+      <div style="min-width:0">
+        <div class="spread"><div class="row" style="gap:10px"><span class="nr">${esc(c.nr||'ohne Nr.')}</span>${c.paket?`<span class="mono muted">Paket ${esc(c.paket)}</span>`:''}</div>
+          <button class="ghost" data-edit="${c.id}">Bearbeiten</button></div>
+        ${flags?`<span class="pill warn">${flags} unsicher</span>`:''}
+        <div class="clines">${c.lines.map(l=>`<div class="cl"><span class="mono">${esc(l.art||l.raw)}</span><span class="num">${fmt(l.qty)} Stk${(l.ve||veOf(l.art))&&l.qty?` · ${fmt(l.qty/(l.ve||veOf(l.art)))} Pak.`:''}</span></div>`).join('')}</div>
+        ${c.codes&&c.codes.length?`<div class="small muted">Strichcode: <span class="mono">${esc(c.codes.join(', '))}</span></div>`:''}
+      </div></div>`;
+  }).join('');
+  document.querySelectorAll('[data-edit]').forEach(b=> b.onclick = () => { const c = S.cartons.find(x=>x.id===b.dataset.edit); openSheet(JSON.parse(JSON.stringify(c)), true); });
+}
+function renderRec(){
+  const rows = reconcile();
+  const cnt = {bad:0,warn:0,info:0,ok:0}; rows.forEach(r=>cnt[r.level]++);
+  const hasOrder = S.order.rows.length>0;
+  $('#summary').innerHTML = `<div class="s-bad"><b>${cnt.bad}</b><span>Fehlt / falsch</span></div><div class="s-warn"><b>${cnt.warn}</b><span>Teilmenge / Mehr</span></div>${hasOrder?`<div class="s-info"><b>${cnt.info}</b><span>Abw. Bestellung</span></div>`:`<div><b>${S.cartons.length}${S.expected?'<span class="muted" style="font-size:16px"> / '+S.expected+'</span>':''}</b><span>Kartons erfasst</span></div>`}<div class="s-ok"><b>${cnt.ok}</b><span>OK</span></div>`;
+  const F = [['alle','Alle',rows.length],['offen','Offen',cnt.bad+cnt.warn]].concat(hasOrder?[['info','Abw. Bestellung',cnt.info]]:[]).concat([['ok','OK',cnt.ok]]);
+  $('#filters').innerHTML = F.map(([k,l,n])=>`<button aria-pressed="${filter===k}" data-f="${k}">${l} · ${n}</button>`).join('');
+  document.querySelectorAll('[data-f]').forEach(b=> b.onclick=()=>{ filter=b.dataset.f; renderRec(); });
+  const vis = rows.filter(r=> filter==='alle' || (filter==='offen' && (r.level==='bad'||r.level==='warn')) || r.level===filter);
+  if (!rows.length){ $('#recList').innerHTML = `<div class="empty" style="border:0">Noch nichts abzugleichen. Lade Lieferschein oder Bestellung und erfasse Kartons.</div>`; return; }
+  if (!vis.length){ $('#recList').innerHTML = `<div class="empty" style="border:0">Keine Artikel in diesem Filter.</div>`; return; }
+  const exp = S.expected;
+  $('#recList').innerHTML = (exp && S.cartons.length!==exp ? `<div class="rec warn"><b>${S.cartons.length} von ${exp} Umkartons erfasst</b><span class="small muted">Laut Frachtbrief fehlen noch ${Math.max(0,exp-S.cartons.length)} Kartons.</span></div>` : '') +
+  vis.map(r=>{
+    const soll = r.lieferschein ?? r.bestellt;
+    const diff = soll!=null && r.ist!==soll;
+    return `<div class="rec ${r.level}">
+      <div class="spread"><span class="mono" style="font-weight:600;overflow-wrap:anywhere">${esc(r.art)}</span><span class="pill ${r.level}">${esc(r.status)}</span></div>
+      ${(r.dim||r.text)?`<div class="small muted">${r.dim?`<b>${esc(r.dim)}</b> · `:''}${esc((r.text||'').slice(0,80))}</div>`:''}
+      <div class="nums" ${hasOrder?'':'style="grid-template-columns:repeat(3,minmax(0,1fr))"'}>
+        ${hasOrder?`<div><span>Bestellt</span><b>${fmt(r.bestellt)}</b></div>`:''}
+        <div><span>Lieferschein</span><b>${fmt(r.lieferschein)}</b></div>
+        <div class="${diff?'hl':''}"><span>Kartons</span><b>${fmt(r.ist)}</b></div>
+        <div><span>Pakete${r.ve?' à '+r.ve:''}</span><b>${r.pakete!=null?fmt(r.pakete):'–'}</b></div>
+      </div>
+      ${r.kartons.length?`<div class="small muted">in Karton ${esc(r.kartons.join(', '))}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ---------------- Navigation ----------------
+const VIEWS = ['unterlagen','kartons','abgleich'];
+function route(){
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : (S.cartons.length || S.note.rows.length ? 'kartons' : 'unterlagen');
+  VIEWS.forEach(x=>{ $('#v-'+x).hidden = x!==v; });
+  document.querySelectorAll('nav.tabs a').forEach(a=>{ if (a.dataset.v===v) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange', route);
+
+let toastT;
+function toast(msg){ let t = $('#toast'); if(!t){ t=document.createElement('div'); t.id='toast'; t.className='toast'; t.setAttribute('role','status'); document.body.appendChild(t);} t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true, 2600); }
+function progressEl(host, label){
+  host.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px"><div class="small muted" data-l>${esc(label)}</div><div class="progress"><i></i></div></div>`;
+  return { set(p, l){ host.querySelector('i').style.width = Math.round(p*100)+'%'; if(l) host.querySelector('[data-l]').textContent = l; }, done(){ host.innerHTML=''; } };
+}
+
+// ---------------- OCR ----------------
+let workerP = null, curProg = null;
+function getWorker(){
+  if (workerP) return workerP;
+  if (!window.Tesseract) return Promise.reject(new Error('Texterkennung konnte nicht geladen werden.'));
+  workerP = Tesseract.createWorker('deu', 1, {
+    workerPath: OCR.worker, corePath: OCR.core, langPath: OCR.lang, gzip: true, cacheMethod: 'none', workerBlobURL: false,
+    logger: m => { if (curProg && m && typeof m.progress==='number'){ const st = m.status==='recognizing text' ? 'Lese Text' : 'Starte Texterkennung (einmalig)'; curProg(m.progress, st); } }
+  }).then(async w => { await w.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' }); return w; })
+    .catch(e => { workerP = null; throw e; });
+  return workerP;
+}
+async function ocr(canvas, onP){
+  const w = await getWorker();
+  curProg = onP || null;
+  try { const r = await w.recognize(canvas); return r.data.text || ''; } finally { curProg = null; }
+}
+async function loadBitmap(file){
+  try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  catch(e){ return await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error('Bild konnte nicht geöffnet werden.')); im.src=URL.createObjectURL(file); }); }
+}
+function toCanvas(src, rot, maxSide, mode){
+  const w0 = src.width, h0 = src.height;
+  const sc = Math.min(1, maxSide / Math.max(w0,h0));
+  const w = Math.round(w0*sc), h = Math.round(h0*sc);
+  const swap = rot%180!==0;
+  const c = document.createElement('canvas'); c.width = swap?h:w; c.height = swap?w:h;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.translate(c.width/2, c.height/2); x.rotate(rot*Math.PI/180); x.drawImage(src, -w/2, -h/2, w, h);
+  if (mode==='raw') return c;
+  const img = x.getImageData(0,0,c.width,c.height), d = img.data, n = c.width*c.height;
+  const g = new Uint8ClampedArray(n);
+  const hist = new Uint32Array(256);
+  for (let i=0,j=0;i<n;i++,j+=4){ const v = (d[j]*0.299 + d[j+1]*0.587 + d[j+2]*0.114)|0; g[i]=v; hist[v]++; }
+  // Kontrast strecken (2 % / 98 %)
+  let lo=0, hi=255, acc=0; for(;lo<255;lo++){acc+=hist[lo]; if(acc>n*0.02) break;} acc=0; for(;hi>0;hi--){acc+=hist[hi]; if(acc>n*0.02) break;}
+  const span = Math.max(1, hi-lo);
+  for (let i=0;i<n;i++){ let v = (g[i]-lo)*255/span; g[i] = v<0?0:v>255?255:v; }
+  let out = g;
+  if (mode==='thresh'){
+    // adaptive Schwelle (lokaler Mittelwert) für blassen Thermodruck
+    const W=c.width, H=c.height, r = Math.max(8, Math.round(Math.max(W,H)/60));
+    const I = new Float64Array((W+1)*(H+1));
+    for (let yy=1; yy<=H; yy++){ let rs=0; for (let xx=1; xx<=W; xx++){ rs += g[(yy-1)*W+xx-1]; I[yy*(W+1)+xx] = I[(yy-1)*(W+1)+xx] + rs; } }
+    out = new Uint8ClampedArray(n);
+    for (let yy=0; yy<H; yy++){ const y1=Math.max(0,yy-r), y2=Math.min(H,yy+r+1);
+      for (let xx=0; xx<W; xx++){ const x1=Math.max(0,xx-r), x2=Math.min(W,xx+r+1);
+        const s = I[y2*(W+1)+x2]-I[y1*(W+1)+x2]-I[y2*(W+1)+x1]+I[y1*(W+1)+x1];
+        const m = s/((x2-x1)*(y2-y1)); out[yy*W+xx] = g[yy*W+xx] < m-14 ? 0 : 255; } }
+  }
+  for (let i=0,j=0;i<n;i++,j+=4){ d[j]=d[j+1]=d[j+2]=out[i]; d[j+3]=255; }
+  x.setTransform(1,0,0,1,0,0); x.putImageData(img,0,0);
+  return c;
+}
+function makeThumb(src, rot){ const c = toCanvas(src, rot, 360, 'raw'); return c.toDataURL('image/jpeg', 0.6); }
+async function barcodes(src){
+  try { if (!('BarcodeDetector' in window)) return []; const bd = new BarcodeDetector(); const r = await bd.detect(src); return [...new Set(r.map(x=>x.rawValue).filter(Boolean))]; } catch(e){ return []; }
+}
+function matchLines(parsed){
+  const R = refs();
+  return parsed.map(l=>{ const m = P.matchArticle(l.raw, l.dim, R); const ref = R.find(r=>r.art===m.art);
+    return { art: m.conf==='unbekannt' ? P.cleanArt(l.raw) : m.art, raw:l.raw, dim:l.dim, qty:l.qty, ve: l.ve || (ref&&ref.ve) || null, conf: m.conf }; });
+}
+async function readLabel(file, rot, onP){
+  const src = await loadBitmap(file);
+  const step = (a,b,l) => p => onP && onP(a + (b-a)*p, l);
+  let text = await ocr(toCanvas(src, rot, 2200, 'gray'), step(0,.5,'Lese Etikett'));
+  let lines = P.parseLabel(text);
+  let usedRot = rot;
+  if (!lines.length){
+    for (const add of [90, 270]){
+      const t2 = await ocr(toCanvas(src, (rot+add)%360, 2200, 'gray'), step(.5,.75,'Etikett gedreht? Versuche andere Ausrichtung'));
+      const l2 = P.parseLabel(t2); if (l2.length){ text=t2; lines=l2; usedRot=(rot+add)%360; break; }
+    }
+  }
+  let head = P.parseLabelHead(text);
+  if (!lines.length || lines.some(l=>l.qty==null || !l.dim)){
+    const t3 = await ocr(toCanvas(src, usedRot, 2400, 'thresh'), step(.75,1,'Zweiter Durchgang mit mehr Kontrast'));
+    const l3 = P.parseLabel(t3);
+    if (!lines.length) { lines = l3; text = t3; }
+    else lines.forEach(l=>{ if (l.qty==null){ const R=refs(); const a=P.matchArticle(l.raw,l.dim,R).art; const o=l3.find(x=>P.matchArticle(x.raw,x.dim,R).art===a && x.qty!=null); if(o) l.qty=o.qty; } if(!l.dim){ const o=l3.find(x=>x.raw.slice(-9)===l.raw.slice(-9)&&x.dim); if(o) l.dim=o.dim; } });
+    const h3 = P.parseLabelHead(t3); head.paket = head.paket||h3.paket; head.auftrag = head.auftrag||h3.auftrag;
+    text += '\n\n--- 2. Durchgang ---\n' + t3;
+  }
+  const codes = await barcodes(src);
+  return { lines: matchLines(lines), head, codes, text, thumb: makeThumb(src, usedRot), rot: usedRot };
+}
+
+// ---------------- Karton-Panel ----------------
+function nextNr(){ const n = S.cartons.map(c=>parseInt(c.nr,10)).filter(x=>!isNaN(x)); return n.length ? String(Math.max(...n)+1) : ''; }
+let sheet = null;
+function openSheet(c, existing, file){
+  sheet = { c, existing, file, rot: c.rot||0 };
+  drawSheet();
+}
+function closeSheet(){ sheet=null; $('#sheetHost').innerHTML=''; document.body.style.overflow=''; }
+function warnings(c){
+  const w = [];
+  const others = S.cartons.filter(x=>x.id!==c.id);
+  if (c.nr && others.some(x=>x.nr===c.nr)) w.push(['bad',`Kartonnummer ${c.nr} ist schon erfasst.`]);
+  if (c.paket && others.some(x=>x.paket===c.paket)) w.push(['bad',`Paketnummer ${c.paket} ist schon erfasst. Doppelt fotografiert?`]);
+  const sig = P.cartonSignature(c); if (sig && others.some(x=>P.cartonSignature(x)===sig)) w.push(['warn','Ein anderer Karton hat genau denselben Inhalt. Bitte prüfen, ob es derselbe Karton ist.']);
+  if (!c.lines.length) w.push(['bad','Keine Positionen erkannt. Neu fotografieren oder Positionen von Hand eintragen.']);
+  c.lines.forEach((l,i)=>{ if(l.qty==null||l.qty==='') w.push(['bad',`Zeile ${i+1}: Menge nicht lesbar, bitte eintragen.`]); else if (l.conf==='unbekannt' && refs().length) w.push(['bad',`Zeile ${i+1}: Artikel ${l.art} steht weder auf Bestellung noch Lieferschein.`]); else if (l.conf==='unsicher') w.push(['warn',`Zeile ${i+1}: Artikelnummer unsicher gelesen. Bitte mit dem Etikett vergleichen.`]); const ve=+l.ve||veOf(l.art); if (ve && l.qty && (l.qty % ve)) w.push(['warn',`Zeile ${i+1}: ${fmt(l.qty)} Stk ist kein Vielfaches der VE ${ve}.`]); });
+  return w;
+}
+function drawSheet(){
+  if (!sheet) return;
+  const c = sheet.c;
+  document.body.style.overflow='hidden';
+  const thumb = sheet.thumb || thumbs.get(c.id);
+  const w = sheet.busy ? [] : warnings(c);
+  $('#sheetHost').innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="Karton prüfen">
+    <div class="bar"><div class="wrap"><h3>${sheet.existing?'Karton bearbeiten':'Neuer Karton'}</h3><button class="ghost" id="shClose">Schließen</button></div></div>
+    <div class="wrap" style="padding-block:14px;display:flex;flex-direction:column;gap:14px">
+      ${thumb?`<img class="preview" src="${thumb}" alt="Foto des Etiketts">`:''}
+      <div id="shProg"></div>
+      ${sheet.error?`<div class="banner err"><p>${esc(sheet.error)}</p></div>`:''}
+      ${sheet.file && !sheet.busy?`<div class="row"><button id="shRot">Gedreht erkennen ↻</button><button id="shRetry">Neu erkennen</button></div>`:''}
+      <div class="grid3">
+        <label class="f" for="shNr">Kartonnr. (Hand)<input id="shNr" type="text" inputmode="numeric" value="${esc(c.nr)}" placeholder="z. B. 127"></label>
+        <label class="f" for="shPaket">Paketnummer<input id="shPaket" class="mono" type="text" inputmode="numeric" value="${esc(c.paket)}"></label>
+        <label class="f" for="shAuftrag">Auftragsnr.<input id="shAuftrag" class="mono" type="text" inputmode="numeric" value="${esc(c.auftrag)}"></label>
+      </div>
+      ${c.codes&&c.codes.length?`<div class="small muted">Strichcode erkannt: <span class="mono">${esc(c.codes.join(', '))}</span></div>`:''}
+      ${w.length?`<div class="warnlist">${w.map(([lv,t])=>`<div class="${lv}">${esc(t)}</div>`).join('')}</div>`:''}
+      <div class="eyebrow">Positionen auf dem Etikett</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${c.lines.map((l,i)=>{ const ve=+l.ve||veOf(l.art); const [cl,lab]=CONF_LBL[l.conf]||CONF_LBL.manuell; return `
+        <div class="editrow" data-li="${i}">
+          <label class="f">Artikelnummer<input class="mono" list="artList" data-k="art" value="${esc(l.art)}" autocomplete="off" spellcheck="false" id="sh-art-${i}"></label>
+          <label class="f">Menge Stk<input type="number" inputmode="numeric" data-k="qty" value="${esc(l.qty??'')}" class="${l.qty==null||l.qty===''?'missing':''}" id="sh-q-${i}"></label>
+          <label class="f">VE<input type="number" inputmode="numeric" data-k="ve" value="${esc(l.ve??'')}" placeholder="${esc(veOf(l.art)??'')}" id="sh-ve-${i}"></label>
+          <button class="x" data-ldel aria-label="Zeile löschen">✕</button>
+          <div class="meta"><span class="pill ${cl}">${lab}</span>${l.dim?`<b class="mono">${esc(l.dim)}</b>`:''}${ve&&l.qty?`<span>= ${fmt(l.qty/ve)} Pakete</span>`:''}${l.raw&&P.cleanArt(l.raw)!==P.cleanArt(l.art)?`<span>gelesen: <span class="mono">${esc(l.raw)}</span></span>`:''}</div>
+        </div>`; }).join('')}
+        <button class="ghost" id="shAddLine" style="align-self:flex-start">+ Position</button>
+      </div>
+      ${sheet.text?`<details><summary>Erkannter Rohtext</summary><pre class="raw">${esc(sheet.text)}</pre></details>`:''}
+      ${sheet.existing?`<div id="shDelHost"><button class="danger" id="shDel">Karton löschen</button></div>`:''}
+    </div>
+    <div class="foot"><div class="wrap"><button id="shCancel">Verwerfen</button><button class="primary" id="shSave" ${sheet.busy?'disabled':''}>Speichern</button></div></div>
+  </div>`;
+  const bindVal = (id,k) => { const el=$(id); if(el) el.oninput = () => { c[k] = el.value.trim(); }; };
+  bindVal('#shNr','nr'); bindVal('#shPaket','paket'); bindVal('#shAuftrag','auftrag');
+  ['#shNr','#shPaket','#shAuftrag'].forEach(id=>{ const el=$(id); if(el) el.onchange=()=>drawSheet(); });
+  document.querySelectorAll('[data-li]').forEach(el=>{ const i=+el.dataset.li; el.querySelectorAll('input').forEach(inp=>{ inp.onchange=()=>{ const k=inp.dataset.k; let v=inp.value.trim(); if(k==='art'){ v=P.cleanArt(v); const R=refs(); const ref=R.find(r=>P.cleanArt(r.art)===v); c.lines[i].conf = ref?'exakt':(R.length?'unbekannt':'manuell'); if(ref){ c.lines[i].dim=ref.dim; } } else v = v===''?null:+v; c.lines[i][k]=v; drawSheet(); }; }); el.querySelector('[data-ldel]').onclick=()=>{ c.lines.splice(i,1); drawSheet(); }; });
+  $('#shAddLine').onclick = () => { c.lines.push({art:'',raw:'',qty:null,ve:null,conf:'manuell'}); drawSheet(); setTimeout(()=>{ const el=$('#sh-art-'+(c.lines.length-1)); el&&el.focus(); },30); };
+  $('#shClose').onclick = $('#shCancel').onclick = closeSheet;
+  const del = $('#shDel'); if (del) del.onclick = () => { $('#shDelHost').innerHTML = `<div class="confirm"><b>Karton ${esc(c.nr||'')} wirklich löschen?</b><div class="row"><button id="shDelNo">Abbrechen</button><button class="danger" id="shDelYes">Löschen</button></div></div>`; $('#shDelNo').onclick=drawSheet; $('#shDelYes').onclick=()=>{ S.cartons=S.cartons.filter(x=>x.id!==c.id); thumbs.delete(c.id); idbDel(c.id); save(); closeSheet(); render(); toast('Karton gelöscht'); }; };
+  const rot = $('#shRot'); if (rot) rot.onclick = () => runRecognition((sheet.rot+90)%360);
+  const re = $('#shRetry'); if (re) re.onclick = () => runRecognition(sheet.rot);
+  $('#shSave').onclick = () => {
+    c.lines = c.lines.filter(l=>l.art || l.qty);
+    c.ts = c.ts || Date.now();
+    if (sheet.existing){ const i=S.cartons.findIndex(x=>x.id===c.id); S.cartons[i]=c; } else S.cartons.push(c);
+    if (sheet.thumb){ thumbs.set(c.id, sheet.thumb); idbPut(c.id, sheet.thumb); }
+    if (S.demo) S.demo = false;
+    save(); const nr=c.nr; closeSheet(); render(); toast(`Karton ${nr||''} gespeichert`);
+  };
+}
+async function runRecognition(rot){
+  if (!sheet || !sheet.file) return;
+  sheet.busy = true; sheet.error = ''; drawSheet();
+  const pr = progressEl($('#shProg'), 'Starte Texterkennung');
+  try {
+    const r = await readLabel(sheet.file, rot, (p,l)=>pr.set(p,l));
+    if (!sheet) return;
+    sheet.rot = r.rot; sheet.thumb = r.thumb; sheet.text = r.text;
+    const c = sheet.c; c.lines = r.lines; c.codes = r.codes;
+    if (r.head.paket) c.paket = r.head.paket; if (r.head.auftrag) c.auftrag = r.head.auftrag;
+  } catch(e){ if (sheet) sheet.error = 'Texterkennung fehlgeschlagen: ' + (e && e.message || e) + ' Positionen können von Hand eingetragen werden.'; }
+  if (sheet){ sheet.busy = false; drawSheet(); }
+}
+async function newCartonFromFile(file){
+  openSheet({ id: uid(), nr: nextNr(), paket:'', auftrag:'', codes:[], lines:[], ts:0 }, false, file);
+  await runRecognition(0);
+}
+$('#camInput').onchange = e => { const f = e.target.files[0]; e.target.value=''; if (f) newCartonFromFile(f); };
+$('#galInput').onchange = async e => {
+  const files = [...e.target.files]; e.target.value=''; if (!files.length) return;
+  if (files.length===1) return newCartonFromFile(files[0]);
+  // Mehrere Fotos: nacheinander erkennen und direkt speichern, unsichere markiert
+  const pr = progressEl($('#batchProg'), `0 von ${files.length} Fotos`);
+  let i=0;
+  for (const f of files){
+    try { const r = await readLabel(f, 0, p=>pr.set((i+p)/files.length, `Foto ${i+1} von ${files.length}`));
+      const c = { id: uid(), nr: '', paket: r.head.paket, auftrag: r.head.auftrag, codes: r.codes, lines: r.lines, ts: Date.now() + i };
+      S.cartons.push(c); thumbs.set(c.id, r.thumb); idbPut(c.id, r.thumb);
+    } catch(err){ toast('Foto ' + (i+1) + ' nicht lesbar'); }
+    i++; pr.set(i/files.length);
+  }
+  if (S.demo) S.demo=false;
+  pr.done(); save(); render(); toast(`${files.length} Fotos erfasst. Bitte Kartonnummern nachtragen.`);
+};
+$('#manualCarton').onclick = () => openSheet({ id: uid(), nr: nextNr(), paket:'', auftrag:'', codes:[], lines:[{art:'',raw:'',qty:null,ve:null,conf:'manuell'}], ts:0 }, false, null);
+
+// ---------------- PDF / Bilder für Unterlagen ----------------
+async function pdfToTexts(file, onP){
+  if (!window.pdfjsLib) throw new Error('PDF-Leser nicht geladen.');
+  const buf = await file.arrayBuffer();
+  const doc = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
+  const out = [];
+  for (let p=1; p<=doc.numPages; p++){
+    const page = await doc.getPage(p);
+    const tc = await page.getTextContent();
+    const items = tc.items.filter(it=>it.str && it.str.trim());
+    if (items.reduce((a,it)=>a+it.str.length,0) > 60){
+      const rows = new Map();
+      items.forEach(it=>{ const y = Math.round(it.transform[5]/3); if(!rows.has(y)) rows.set(y,[]); rows.get(y).push(it); });
+      const text = [...rows.entries()].sort((a,b)=>b[0]-a[0]).map(([,a])=>a.sort((x,y)=>x.transform[4]-y.transform[4]).map(i=>i.str).join(' ')).join('\n');
+      out.push(text); onP && onP(p/doc.numPages, `Seite ${p} von ${doc.numPages} (Textebene)`);
+    } else {
+      const vp = page.getViewport({ scale: 2.4 });
+      const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      const g = toCanvas(c, 0, 3000, 'gray');
+      out.push(await ocr(g, x=> onP && onP((p-1+x)/doc.numPages, `Seite ${p} von ${doc.numPages}: Texterkennung`)));
+    }
+  }
+  return out;
+}
+async function filesToText(files, onP){
+  const texts = [];
+  for (let i=0;i<files.length;i++){
+    const f = files[i], sub = (a)=> (x,l)=> onP((i + x)/files.length, l);
+    if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)) texts.push(...await pdfToTexts(f, sub()));
+    else { const src = await loadBitmap(f); texts.push(await ocr(toCanvas(src,0,2600,'gray'), x=>onP((i+x)/files.length, `Bild ${i+1}: Texterkennung`))); }
+  }
+  return texts.join('\n');
+}
+$('#notePdf').onchange = async e => {
+  const files=[...e.target.files]; e.target.value=''; if(!files.length) return;
+  const pr = progressEl($('#noteProg'), 'Lese Lieferschein');
+  try {
+    const text = await filesToText(files, (p,l)=>pr.set(p,l));
+    const r = P.parseDeliveryNote(text);
+    pr.done();
+    if (!r.rows.length){ $('#noteProg').innerHTML = `<div class="banner err"><p>Keine Positionen gefunden. Erwartet werden Zeilen wie „10  4012345678901  3,5 x 35  10.000 Stk …“ und „Unsere Artikelnummer: …“. Positionen lassen sich auch von Hand ergänzen.</p></div><details><summary>Erkannter Rohtext</summary><pre class="raw">${esc(text)}</pre></details>`; return; }
+    if (S.demo) clearDemo();
+    S.note = { rows: r.rows, head: r.head, source: files.map(f=>f.name).join(', ') };
+    const noArt = r.rows.filter(x=>!x.art).length;
+    save(); render(); toast(`${r.rows.length} Positionen gelesen${noArt?`, ${noArt} ohne Artikelnummer`:''}`);
+  } catch(err){ pr.done(); $('#noteProg').innerHTML = `<div class="banner err"><p>${esc(err.message||err)}</p></div>`; }
+};
+$('#orderPdf').onchange = async e => {
+  const files=[...e.target.files]; e.target.value=''; if(!files.length) return;
+  const pr = progressEl($('#orderProg'), 'Lese Bestellung');
+  try {
+    const text = await filesToText(files, (p,l)=>pr.set(p,l));
+    const rows = P.parseOrderText(text, refs());
+    pr.done();
+    if (!rows.length){ $('#orderProg').innerHTML = `<div class="banner err"><p>Keine Positionen erkannt. Am zuverlässigsten ist ein Excel/CSV-Export der Bestellung.</p></div><details><summary>Erkannter Rohtext</summary><pre class="raw">${esc(text)}</pre></details>`; return; }
+    if (S.demo) clearDemo();
+    const R = refs(); rows.forEach(r=>{ if (R.length){ const m=P.matchArticle(r.art, r.dim, R); if (m.conf!=='unbekannt') r.art=m.art; } });
+    S.order = { rows, source: files.map(f=>f.name).join(', ') }; save(); render(); toast(`${rows.length} Bestellpositionen gelesen`);
+  } catch(err){ pr.done(); $('#orderProg').innerHTML = `<div class="banner err"><p>${esc(err.message||err)}</p></div>`; }
+};
+// Excel / CSV mit Spaltenzuordnung
+let xlsRows = null;
+$('#orderXls').onchange = async e => {
+  const f = e.target.files[0]; e.target.value=''; if(!f) return;
+  try {
+    if (!window.XLSX) throw new Error('Excel-Leser nicht geladen.');
+    const wb = XLSX.read(await f.arrayBuffer(), { type:'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const all = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:'' }).filter(r=>r.some(v=>String(v).trim()!==''));
+    let hi = all.findIndex(r=> r.filter(v=>/artikel|art\.?\s*-?nr|menge|anzahl|bestell/i.test(String(v))).length>=1);
+    if (hi<0) hi=0;
+    const header = all[hi].map((v,i)=>String(v||'Spalte '+(i+1)).trim());
+    const data = all.slice(hi+1);
+    xlsRows = { header, data, name: f.name };
+    const guessCol = (re, pref) => { let best=-1, bs=-1; header.forEach((h,i)=>{ let s = re.test(h)?2:0; if (pref){ const vals=data.slice(0,20).map(r=>String(r[i]||'')); s += vals.filter(pref).length/Math.max(1,vals.length)*3; } if(s>bs){bs=s;best=i;} }); return best; };
+    const artCol = guessCol(/lief.*art|artikel|art\.?\s*-?nr|bestellnr/i, v=>/[A-Z0-9]{5,}-[A-Z0-9]{4,}/i.test(v));
+    const qCol = guessCol(/menge|anzahl|qty|stk/i, v=>/^\d+([.,]\d+)?$/.test(String(v).trim()));
+    const opts = sel => header.map((h,i)=>`<option value="${i}" ${i===sel?'selected':''}>${esc(h)}</option>`).join('');
+    $('#orderMap').innerHTML = `<div class="card" style="background:var(--sunk)">
+      <div class="small"><b>${esc(f.name)}</b> · ${data.length} Zeilen. Spalten zuordnen:</div>
+      <div class="grid3">
+        <label class="f" for="mapArt">Lief.-Artikelnr.<select id="mapArt">${opts(artCol)}</select></label>
+        <label class="f" for="mapQty">Menge<select id="mapQty">${opts(qCol)}</select></label>
+        <label class="f" for="mapUnit">Menge ist in<select id="mapUnit"><option value="Stk">Stück</option><option value="VE">VE (Pakete)</option></select></label>
+      </div>
+      <div class="row"><button class="primary" id="mapOk">Übernehmen</button><button class="ghost" id="mapNo">Abbrechen</button></div>
+    </div>`;
+    $('#mapNo').onclick = () => { $('#orderMap').innerHTML=''; xlsRows=null; };
+    $('#mapOk').onclick = () => {
+      const a=+$('#mapArt').value, q=+$('#mapQty').value, u=$('#mapUnit').value;
+      const rows = xlsRows.data.map(r=>({ art:P.cleanArt(r[a]), qty: typeof r[q]==='number' ? r[q] : P.num(String(r[q]).replace(/[^\d.,]/g,'')||'0'), unit:u, dim:'' })).filter(r=>r.art && r.qty);
+      if (S.demo) clearDemo();
+      S.order = { rows, source: xlsRows.name }; $('#orderMap').innerHTML=''; xlsRows=null; save(); render(); toast(`${rows.length} Bestellpositionen übernommen`);
+    };
+  } catch(err){ $('#orderMap').innerHTML = `<div class="banner err"><p>${esc(err.message||err)}</p></div>`; }
+};
+$('#orderAdd').onclick = () => { if (S.demo) clearDemo(); S.order.rows.push({art:'',qty:null,unit:'Stk',dim:''}); save(); render(); setTimeout(()=>{ const el=$('#order-art-'+(S.order.rows.length-1)); el&&el.focus(); },30); };
+$('#noteAdd').onclick = () => { if (S.demo) clearDemo(); S.note.rows.push({pos:'',ean:'',art:'',dim:'',menge:null,ve:null,text:''}); save(); render(); setTimeout(()=>{ const el=$('#note-art-'+(S.note.rows.length-1)); el&&el.focus(); },30); };
+$('#expected').onchange = e => { const v=e.target.value.trim(); S.expected = v===''?null:+v; save(); render(); };
+
+function clearDemo(){ S = emptyState(); thumbs.clear(); idbClear(); }
+function resetAll(){ S = emptyState(); thumbs.clear(); idbClear(); save(); render(); }
+$('#resetBtn').onclick = () => {
+  $('#resetConfirm').innerHTML = `<div class="confirm"><b>Alle Unterlagen und ${S.cartons.length} erfasste Kartons löschen?</b><span class="small">Vorher das Ergebnis im Abgleich sichern, falls es noch gebraucht wird.</span><div class="row"><button id="rsNo">Abbrechen</button><button class="danger" id="rsYes">Alles löschen</button></div></div>`;
+  $('#rsNo').onclick = () => $('#resetConfirm').innerHTML='';
+  $('#rsYes').onclick = () => { $('#resetConfirm').innerHTML=''; resetAll(); toast('Neue Lieferung begonnen'); };
+};
+
+// ---------------- Export ----------------
+function exportRows(){
+  const hasOrder = S.order.rows.length>0;
+  const byArt = new Map((S.note.rows||[]).map(n=>[P.cleanArt(n.art), n]));
+  return reconcile().map(r=>{ const n = byArt.get(P.cleanArt(r.art)) || {}; const o = { 'Pos.':n.pos||'', 'EAN':n.ean||'', 'Artikelnummer':r.art, 'Abmessung':r.dim, 'Bezeichnung':r.text, 'VE':r.ve }; if (hasOrder) o['Bestellt Stk']=r.bestellt; return Object.assign(o, { 'Lieferschein Stk':r.lieferschein, 'Kartons Stk':r.ist, 'Pakete':r.pakete!=null?Math.round(r.pakete*100)/100:null, 'Differenz Stk': (r.lieferschein??r.bestellt)!=null ? r.ist-(r.lieferschein??r.bestellt) : null, 'Status':r.status, 'In Kartons':r.kartons.join(', ') }); });
+}
+function cartonRows(){
+  const out=[]; S.cartons.forEach(c=>c.lines.forEach(l=>out.push({ 'Karton':c.nr, 'Paketnummer':c.paket, 'Auftragsnr.':c.auftrag, 'Strichcode':(c.codes||[]).join(' '), 'Artikelnummer':l.art, 'Gelesen als':l.raw, 'Menge Stk':l.qty, 'VE':l.ve||veOf(l.art), 'Erkennung':l.conf }))); return out;
+}
+function stamp(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+async function offerFile(filename, data){
+  try {
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl){ await dl.save({ filename, data }); toast('Datei gespeichert'); return; }
+  } catch(err){ if (err && err.code==='declined') return; if (err && err.code!=='unavailable' && err.code!=='not_granted'){ toast('Speichern nicht möglich: ' + (err.message||err.code)); return; } }
+  if (window.claude && window.claude.use && !window.__WE_STANDALONE__){ toast('Speichern ist in dieser Ansicht nicht möglich. „Abweichungen kopieren“ nutzen.'); return; }
+  const blob = data instanceof Blob ? data : new Blob([data]);
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+$('#expXlsx').onclick = async () => {
+  if (!window.XLSX){ toast('Excel-Modul nicht geladen, CSV nutzen.'); return; }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportRows()), 'Abgleich');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cartonRows()), 'Kartons');
+  const L = (S.note.rows||[]).map(n=>({Pos:n.pos, EAN:n.ean, Artikelnummer:n.art, Abmessung:n.dim, 'Liefermenge Stk':n.menge, VE:n.ve, Bezeichnung:n.text}));
+  if (L.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(L), 'Lieferschein');
+  const buf = XLSX.write(wb, { type:'array', bookType:'xlsx' });
+  await offerFile(`Wareneingang_${S.note.head&&S.note.head.lieferung||'Lieferung'}_${stamp()}.xlsx`, new Blob([buf]));
+};
+$('#expCsv').onclick = async () => {
+  const rows = exportRows(); if(!rows.length){ toast('Noch keine Daten'); return; }
+  const cols = Object.keys(rows[0]);
+  const csv = '﻿' + [cols.join(';')].concat(rows.map(r=>cols.map(c=>{ const v=r[c]; if(v==null) return ''; const s = typeof v==='number' ? String(v).replace('.',',') : String(v); return /[;"\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }).join(';'))).join('\r\n');
+  await offerFile(`Wareneingang_${stamp()}.csv`, csv);
+};
+$('#expText').onclick = async () => {
+  const rows = reconcile().filter(r=>r.level!=='ok');
+  const h = S.note.head||{};
+  const txt = `Wareneingang ${h.lieferung?'Lieferung '+h.lieferung:''} ${h.datum?'vom '+h.datum:''}\nGeprüft am ${new Date().toLocaleDateString('de-DE')}: ${S.cartons.length}${S.expected?' von '+S.expected:''} Kartons\n\n` +
+    (rows.length ? rows.map(r=>`${r.art}${r.dim?' ('+r.dim+')':''}: ${r.status}. Bestellt ${fmt(r.bestellt)}, Lieferschein ${fmt(r.lieferschein)}, gezählt ${fmt(r.ist)} Stk`).join('\n') : 'Keine Abweichungen.');
+  const ta = $('#copyFallback');
+  try { await navigator.clipboard.writeText(txt); toast('Abweichungen kopiert'); ta.hidden = true; }
+  catch(e){ ta.value = txt; ta.hidden = false; ta.focus(); ta.select(); toast('Text markiert, bitte kopieren'); }
+};
+
+// ---------------- Start ----------------
+idbOpen().then(idbLoadAll).then(()=>renderCartons());
+render(); route();
+// Texterkennung im Hintergrund vorladen, sobald Unterlagen da sind
+setTimeout(()=>{ if (!S.demo) getWorker().catch(()=>{}); }, 1500);
+})();
+</script>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});</script></body></html>

@@ -1,0 +1,41 @@
+Wareneingang Schrauben – Offline-Version
+=======================================
+
+Diese Version läuft nach dem ersten Öffnen komplett ohne Internet auf dem Handy.
+Fotos, Lieferscheine und Ergebnisse bleiben auf dem Gerät (Browser-Speicher).
+
+Bereitstellen (eine Möglichkeit reicht)
+---------------------------------------
+A) GitHub Pages
+   1. Neues Repository anlegen, den Inhalt dieses Ordners hochladen.
+   2. Settings > Pages > Branch "main", Ordner "/ (root)".
+   3. Auf dem Android-Handy die Seite in Chrome öffnen,
+      Menü > "Zum Startbildschirm hinzufügen" bzw. "App installieren".
+   4. Einmal komplett laden lassen (ca. 10 MB). Danach geht es offline.
+   Hinweis: Auf GitHub Pages wird nur der Programmcode geladen. Die Daten
+   der Lieferung werden nie hochgeladen.
+
+B) Interner Webserver im Firmennetz
+   Ordner auf einen beliebigen Webserver mit HTTPS legen (Service Worker
+   und Kamera brauchen HTTPS). Rest wie oben.
+
+Ablauf
+------
+1. Unterlagen: Lieferschein (Scan-PDF oder Fotos) laden, Anzahl Umkartons eintragen.
+2. Kartons: Pro Umkarton das Etikett fotografieren, Erkennung prüfen, speichern.
+3. Abgleich: Abweichungen ansehen, als Excel/CSV sichern oder als Text kopieren.
+
+Tipps fürs Fotografieren
+------------------------
+- Etikett soll das Bild füllen, gerade von vorne, ohne Schatten.
+- Bei blassem Druck den Blitz verwenden.
+- Rot markierte Felder (Menge nicht lesbar) von Hand nachtragen.
+
+Inhalt
+------
+index.html              App
+ocr-worker.js           Texterkennung (Tesseract) mit deutschen Sprachdaten
+deu-data.js             Sprachdaten Deutsch (eingebettet)
+tesseract-core-*.js     Tesseract-Kern (WebAssembly)
+lib/                    pdf.js (PDF lesen), SheetJS (Excel), tesseract.js
+sw.js, manifest.webmanifest, icon.svg   Offline-Betrieb und App-Symbol
