@@ -22,8 +22,10 @@ B) Interner Webserver im Firmennetz
 Ablauf
 ------
 1. Unterlagen: Lieferschein (Scan-PDF oder Fotos) laden, Anzahl Umkartons eintragen.
-2. Kartons: Pro Umkarton das Etikett fotografieren, Erkennung prüfen, speichern.
+2. Kartons: Aktuelle Palette einstellen ("Nächste Palette" beim Wechsel),
+   dann pro Umkarton das Etikett fotografieren, Erkennung prüfen, speichern.
 3. Abgleich: Abweichungen ansehen, als Excel/CSV sichern oder als Text kopieren.
+   Das Excel-Blatt "Einlagerung" zeigt pro Artikel Palette, Karton und Pakete.
 
 Tipps fürs Fotografieren
 ------------------------

@@ -1,6 +1,6 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Wareneingang Schrauben</title>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Wareneingang Schrauben</title><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1f56b8"><link rel="icon" href="icon.svg"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Wareneingang Schrauben</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1f56b8"><link rel="icon" href="icon.svg">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -87,6 +87,14 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mu
 .editrow .meta{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted)}
 .editrow button.x{min-height:42px;padding:0;width:44px;color:var(--muted)}
 /* Kartons */
+.palbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border-radius:var(--r);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent)}
+.palbar .lbl{display:flex;flex-direction:column;gap:2px}
+.palbar .val{font:700 22px/1 var(--f-head);color:var(--accent);font-variant-numeric:tabular-nums}
+.palbar input{width:88px;font:700 18px var(--f-head);text-align:center}
+.palchip{display:inline-flex;align-items:center;font:600 12px/1 var(--f-head);letter-spacing:.02em;padding:4px 8px;border-radius:5px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.palgroup{padding:8px 12px;background:var(--sunk);border-top:1px solid var(--line);font:600 13px var(--f-head);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.palgroup:first-child{border-top:0}
+.grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .carton{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;padding:12px;border-top:1px solid var(--line);align-items:start}
 .carton:first-child{border-top:0}
 .thumb{width:64px;height:64px;border-radius:6px;background:var(--sunk);border:1px solid var(--line);object-fit:cover;display:flex;align-items:center;justify-content:center;font:700 18px var(--f-head);color:var(--accent)}
@@ -202,6 +210,7 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;he
     <div class="spread">
       <div><h2>Kartons</h2><p class="lead" id="cartonLead">Etikett fotografieren, Erkennung prüfen, speichern.</p></div>
     </div>
+    <div class="palbar" id="palbar"></div>
     <label class="btn primary big" for="camInput"><input id="camInput" type="file" accept="image/*" capture="environment">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
       Karton-Etikett fotografieren</label>
@@ -478,22 +487,23 @@ function demoState(){
     {pos:'70',ean:'',art:'500505S500-0500600-1',dim:'5,0 x 60',menge:3200,ve:200,text:'Spanplattenschraube Senkkopf, TX, Teilgewinde, verzinkt gelb'}
   ];
   const cartons = [
-    {id:'d1',nr:'12',paket:'',auftrag:'',codes:[],ts:Date.now()-60000,lines:[
+    {id:'d1',nr:'12',pal:'1',paket:'',auftrag:'',codes:[],ts:Date.now()-60000,lines:[
       {art:'300303S300-0390110-1',raw:'3003038300-0390110-1',qty:1000,ve:200,conf:'korrigiert'},
       {art:'300300S300-0390350-1',raw:'3003008300-0390350-1',qty:5000,ve:1000,conf:'korrigiert'},
       {art:'300303S300-0390110-1',raw:'3OO3O3SHF-0390110-1',qty:3200,ve:200,conf:'unsicher'},
       {art:'100101S100-0601000-1',raw:'1001018100-0801000-1',qty:100,ve:50,conf:'unsicher'},
       {art:'400404S400-0801600-1',raw:'4004048400-0801600-1',qty:100,ve:50,conf:'korrigiert'}]},
-    {id:'d2',nr:'7',paket:'',auftrag:'',codes:[],ts:Date.now()-30000,lines:[
+    {id:'d2',nr:'7',pal:'2',paket:'',auftrag:'',codes:[],ts:Date.now()-30000,lines:[
       {art:'100101S100-0600600-1',raw:'1001018100-0600600-1',qty:1000,ve:10,conf:'korrigiert'},
       {art:'200202V200-0400400-1',raw:'200202V200-0400400-1',qty:3200,ve:200,conf:'exakt'},
       {art:'300303S300-0390110-1',raw:'3003035300-0390110-1',qty:4200,ve:200,conf:'korrigiert'}]}
   ];
-  return {demo:true, order:{rows:[],source:''}, note:{rows:note,head:{lieferung:'Beispiel'},source:'Beispiel'}, cartons, expected:3};
+  return {demo:true, order:{rows:[],source:''}, note:{rows:note,head:{lieferung:'Beispiel'},source:'Beispiel'}, cartons, expected:3, palette:'2'};
 }
-function emptyState(){ return {demo:false, order:{rows:[],source:''}, note:{rows:[],head:{},source:''}, cartons:[], expected:null}; }
+function emptyState(){ return {demo:false, order:{rows:[],source:''}, note:{rows:[],head:{},source:''}, cartons:[], expected:null, palette:'1'}; }
 let S;
 try { const raw = localStorage.getItem(KEY); S = raw ? JSON.parse(raw) : demoState(); } catch(e){ S = demoState(); }
+if (S.palette == null) S.palette = '1';
 let saveT = 0;
 function save(){ clearTimeout(saveT); saveT = setTimeout(()=>{ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }, 150); }
 
@@ -580,16 +590,40 @@ function bindEditRows(){
 function renderDatalist(){
   $('#artList').innerHTML = refs().map(r=>`<option value="${esc(r.art)}">${esc(r.dim||'')} ${esc((r.text||'').slice(0,40))}</option>`).join('');
 }
+function palSort(a,b){ const x=parseFloat(a), y=parseFloat(b); if(!isNaN(x)&&!isNaN(y)&&x!==y) return x-y; return String(a).localeCompare(String(b),'de',{numeric:true}); }
+function palName(p){ return p ? 'Palette ' + p : 'ohne Palette'; }
+function nextPal(p){ const n=parseInt(p,10); return isNaN(n) ? '' : String(n+1); }
+// Pro Artikel: wo liegt was (Palette -> Karton -> Stk/Pakete)
+function placements(){
+  const m = new Map();
+  S.cartons.forEach(c=>c.lines.forEach(l=>{ if(!l.art) return; const k=P.cleanArt(l.art); if(!m.has(k)) m.set(k,[]);
+    const ve = +l.ve || veOf(l.art); const arr = m.get(k); let e = arr.find(x=>x.id===c.id);
+    if (!e){ e = { id:c.id, pal:c.pal||'', nr:c.nr||'', qty:0, pak:0 }; arr.push(e); }
+    e.qty += +l.qty||0; e.pak = (e.pak==null || !ve) ? null : e.pak + (+l.qty||0)/ve; }));
+  m.forEach(a=>a.sort((x,y)=>palSort(x.pal,y.pal)||palSort(x.nr,y.nr)));
+  return m;
+}
+function renderPalbar(){
+  const cnt = S.cartons.filter(c=>(c.pal||'')===(S.palette||'')).length;
+  $('#palbar').innerHTML = `<div class="lbl"><span class="eyebrow">Aktuelle Palette</span><span class="small muted">${cnt===1?'1 Karton':cnt+' Kartons'} darauf erfasst</span></div>
+    <div class="row"><label class="f" for="palInput" style="flex-direction:row;align-items:center;gap:6px"><span class="sr" hidden>Palette</span><input id="palInput" type="text" inputmode="numeric" value="${esc(S.palette||'')}" placeholder="–" aria-label="Aktuelle Palette"></label>
+    <button id="palNext">Nächste Palette</button></div>`;
+  $('#palInput').onchange = e => { S.palette = e.target.value.trim(); save(); render(); };
+  $('#palNext').onclick = () => { const n = nextPal(S.palette); S.palette = n || S.palette; save(); render(); toast(n ? 'Jetzt Palette ' + n : 'Palettennummer bitte eintragen'); if(!n) $('#palInput').focus(); };
+}
 const CONF_LBL = {exakt:['ok','exakt'], korrigiert:['info','korrigiert'], unsicher:['warn','prüfen'], unbekannt:['bad','unbekannt'], manuell:['plain','manuell']};
 function renderCartons(){
-  const list = [...S.cartons].sort((a,b)=>b.ts-a.ts);
+  renderPalbar();
+  const list = [...S.cartons].sort((a,b)=>palSort(b.pal||'',a.pal||'')||b.ts-a.ts);
   const exp = S.expected ? ` von ${S.expected}` : '';
-  $('#cartonLead').textContent = list.length ? `${list.length}${exp} Kartons erfasst. Neueste oben.` : 'Etikett fotografieren, Erkennung prüfen, speichern.';
+  $('#cartonLead').textContent = list.length ? `${list.length}${exp} Kartons erfasst, nach Palette gruppiert.` : 'Etikett fotografieren, Erkennung prüfen, speichern.';
   if (!list.length){ $('#cartonList').innerHTML = `<div class="empty" style="border:0">Noch keine Kartons erfasst. Tippe oben auf „Karton-Etikett fotografieren“.</div>`; return; }
+  let lastPal = null;
   $('#cartonList').innerHTML = list.map(c=>{
+    const head = (c.pal||'')!==lastPal ? (lastPal=(c.pal||''), `<div class="palgroup"><span>${esc(palName(c.pal))}</span><span>${(n=>n===1?'1 Karton':n+' Kartons')(S.cartons.filter(x=>(x.pal||'')===(c.pal||'')).length)}</span></div>`) : '';
     const t = thumbs.get(c.id);
     const flags = c.lines.filter(l=>l.conf==='unsicher'||l.conf==='unbekannt'||!l.qty).length;
-    return `<div class="carton">
+    return head + `<div class="carton">
       ${t ? `<img class="thumb" src="${t}" alt="Etikett Karton ${esc(c.nr)}">` : `<div class="thumb">${esc(c.nr||'?')}</div>`}
       <div style="min-width:0">
         <div class="spread"><div class="row" style="gap:10px"><span class="nr">${esc(c.nr||'ohne Nr.')}</span>${c.paket?`<span class="mono muted">Paket ${esc(c.paket)}</span>`:''}</div>
@@ -612,7 +646,7 @@ function renderRec(){
   const vis = rows.filter(r=> filter==='alle' || (filter==='offen' && (r.level==='bad'||r.level==='warn')) || r.level===filter);
   if (!rows.length){ $('#recList').innerHTML = `<div class="empty" style="border:0">Noch nichts abzugleichen. Lade Lieferschein oder Bestellung und erfasse Kartons.</div>`; return; }
   if (!vis.length){ $('#recList').innerHTML = `<div class="empty" style="border:0">Keine Artikel in diesem Filter.</div>`; return; }
-  const exp = S.expected;
+  const exp = S.expected; const PL = placements();
   $('#recList').innerHTML = (exp && S.cartons.length!==exp ? `<div class="rec warn"><b>${S.cartons.length} von ${exp} Umkartons erfasst</b><span class="small muted">Laut Frachtbrief fehlen noch ${Math.max(0,exp-S.cartons.length)} Kartons.</span></div>` : '') +
   vis.map(r=>{
     const soll = r.lieferschein ?? r.bestellt;
@@ -626,7 +660,8 @@ function renderRec(){
         <div class="${diff?'hl':''}"><span>Kartons</span><b>${fmt(r.ist)}</b></div>
         <div><span>Pakete${r.ve?' à '+r.ve:''}</span><b>${r.pakete!=null?fmt(r.pakete):'–'}</b></div>
       </div>
-      ${r.kartons.length?`<div class="small muted">in Karton ${esc(r.kartons.join(', '))}</div>`:''}
+      ${(()=>{ const pl = PL.get(P.cleanArt(r.art)); if(!pl||!pl.length) return ''; const g=new Map(); pl.forEach(x=>{ if(!g.has(x.pal)) g.set(x.pal,[]); g.get(x.pal).push(x); });
+        return `<div class="small" style="display:flex;flex-direction:column;gap:3px">${[...g.entries()].map(([p,xs])=>`<div><span class="palchip">${esc(p?'Pal. '+p:'ohne Pal.')}</span> <span class="muted">Karton ${esc(xs.map(x=>(x.nr||'?')+(x.pak!=null?' ('+fmt(x.pak)+' Pak.)':' ('+fmt(x.qty)+' Stk)')).join(', '))}</span></div>`).join('')}</div>`; })()}
     </div>`;
   }).join('');
 }
@@ -754,6 +789,16 @@ function warnings(c){
   c.lines.forEach((l,i)=>{ if(l.qty==null||l.qty==='') w.push(['bad',`Zeile ${i+1}: Menge nicht lesbar, bitte eintragen.`]); else if (l.conf==='unbekannt' && refs().length) w.push(['bad',`Zeile ${i+1}: Artikel ${l.art} steht weder auf Bestellung noch Lieferschein.`]); else if (l.conf==='unsicher') w.push(['warn',`Zeile ${i+1}: Artikelnummer unsicher gelesen. Bitte mit dem Etikett vergleichen.`]); const ve=+l.ve||veOf(l.art); if (ve && l.qty && (l.qty % ve)) w.push(['warn',`Zeile ${i+1}: ${fmt(l.qty)} Stk ist kein Vielfaches der VE ${ve}.`]); });
   return w;
 }
+function warnHtml(w){ return w.length?`<div class="warnlist">${w.map(([lv,t])=>`<div class="${lv}">${esc(t)}</div>`).join('')}</div>`:''; }
+function metaHtml(l){ const ve=+l.ve||veOf(l.art); const [cl,lab]=CONF_LBL[l.conf]||CONF_LBL.manuell;
+  return `<span class="pill ${cl}">${lab}</span>${l.dim?`<b class="mono">${esc(l.dim)}</b>`:''}${ve&&l.qty?`<span>= ${fmt(l.qty/ve)} Pakete</span>`:''}${l.raw&&P.cleanArt(l.raw)!==P.cleanArt(l.art)?`<span>gelesen: <span class="mono">${esc(l.raw)}</span></span>`:''}`; }
+// Nach Eingaben nur Hinweise und Infozeilen auffrischen, nie die Eingabefelder ersetzen:
+// sonst geht auf dem Handy ein direkt folgender Tipp (z. B. auf „Speichern“) verloren.
+function refreshSheet(){
+  if (!sheet) return; const c = sheet.c;
+  const w = $('#shWarn'); if (w) w.innerHTML = warnHtml(warnings(c));
+  c.lines.forEach((l,i)=>{ const m=$('#sh-meta-'+i); if(m) m.innerHTML=metaHtml(l); const q=$('#sh-q-'+i); if(q) q.classList.toggle('missing', l.qty==null||l.qty===''); const v=$('#sh-ve-'+i); if(v) v.placeholder = veOf(l.art)??''; });
+}
 function drawSheet(){
   if (!sheet) return;
   const c = sheet.c;
@@ -767,13 +812,14 @@ function drawSheet(){
       <div id="shProg"></div>
       ${sheet.error?`<div class="banner err"><p>${esc(sheet.error)}</p></div>`:''}
       ${sheet.file && !sheet.busy?`<div class="row"><button id="shRot">Gedreht erkennen ↻</button><button id="shRetry">Neu erkennen</button></div>`:''}
-      <div class="grid3">
+      <div class="grid4">
+        <label class="f" for="shPal">Palette<input id="shPal" type="text" inputmode="numeric" value="${esc(c.pal)}" placeholder="z. B. 3"></label>
         <label class="f" for="shNr">Kartonnr. (Hand)<input id="shNr" type="text" inputmode="numeric" value="${esc(c.nr)}" placeholder="z. B. 127"></label>
         <label class="f" for="shPaket">Paketnummer<input id="shPaket" class="mono" type="text" inputmode="numeric" value="${esc(c.paket)}"></label>
         <label class="f" for="shAuftrag">Auftragsnr.<input id="shAuftrag" class="mono" type="text" inputmode="numeric" value="${esc(c.auftrag)}"></label>
       </div>
       ${c.codes&&c.codes.length?`<div class="small muted">Strichcode erkannt: <span class="mono">${esc(c.codes.join(', '))}</span></div>`:''}
-      ${w.length?`<div class="warnlist">${w.map(([lv,t])=>`<div class="${lv}">${esc(t)}</div>`).join('')}</div>`:''}
+      <div id="shWarn">${warnHtml(w)}</div>
       <div class="eyebrow">Positionen auf dem Etikett</div>
       <div style="display:flex;flex-direction:column;gap:8px">
         ${c.lines.map((l,i)=>{ const ve=+l.ve||veOf(l.art); const [cl,lab]=CONF_LBL[l.conf]||CONF_LBL.manuell; return `
@@ -782,7 +828,7 @@ function drawSheet(){
           <label class="f">Menge Stk<input type="number" inputmode="numeric" data-k="qty" value="${esc(l.qty??'')}" class="${l.qty==null||l.qty===''?'missing':''}" id="sh-q-${i}"></label>
           <label class="f">VE<input type="number" inputmode="numeric" data-k="ve" value="${esc(l.ve??'')}" placeholder="${esc(veOf(l.art)??'')}" id="sh-ve-${i}"></label>
           <button class="x" data-ldel aria-label="Zeile löschen">✕</button>
-          <div class="meta"><span class="pill ${cl}">${lab}</span>${l.dim?`<b class="mono">${esc(l.dim)}</b>`:''}${ve&&l.qty?`<span>= ${fmt(l.qty/ve)} Pakete</span>`:''}${l.raw&&P.cleanArt(l.raw)!==P.cleanArt(l.art)?`<span>gelesen: <span class="mono">${esc(l.raw)}</span></span>`:''}</div>
+          <div class="meta" id="sh-meta-${i}">${metaHtml(l)}</div>
         </div>`; }).join('')}
         <button class="ghost" id="shAddLine" style="align-self:flex-start">+ Position</button>
       </div>
@@ -792,21 +838,23 @@ function drawSheet(){
     <div class="foot"><div class="wrap"><button id="shCancel">Verwerfen</button><button class="primary" id="shSave" ${sheet.busy?'disabled':''}>Speichern</button></div></div>
   </div>`;
   const bindVal = (id,k) => { const el=$(id); if(el) el.oninput = () => { c[k] = el.value.trim(); }; };
-  bindVal('#shNr','nr'); bindVal('#shPaket','paket'); bindVal('#shAuftrag','auftrag');
-  ['#shNr','#shPaket','#shAuftrag'].forEach(id=>{ const el=$(id); if(el) el.onchange=()=>drawSheet(); });
-  document.querySelectorAll('[data-li]').forEach(el=>{ const i=+el.dataset.li; el.querySelectorAll('input').forEach(inp=>{ inp.onchange=()=>{ const k=inp.dataset.k; let v=inp.value.trim(); if(k==='art'){ v=P.cleanArt(v); const R=refs(); const ref=R.find(r=>P.cleanArt(r.art)===v); c.lines[i].conf = ref?'exakt':(R.length?'unbekannt':'manuell'); if(ref){ c.lines[i].dim=ref.dim; } } else v = v===''?null:+v; c.lines[i][k]=v; drawSheet(); }; }); el.querySelector('[data-ldel]').onclick=()=>{ c.lines.splice(i,1); drawSheet(); }; });
+  bindVal('#shPal','pal'); bindVal('#shNr','nr'); bindVal('#shPaket','paket'); bindVal('#shAuftrag','auftrag');
+  ['#shPal','#shNr','#shPaket','#shAuftrag'].forEach(id=>{ const el=$(id); if(el) el.onchange=()=>refreshSheet(); });
+  document.querySelectorAll('[data-li]').forEach(el=>{ const i=+el.dataset.li; el.querySelectorAll('input').forEach(inp=>{ inp.onchange=()=>{ const k=inp.dataset.k; let v=inp.value.trim(); if(k==='art'){ v=P.cleanArt(v); const R=refs(); const ref=R.find(r=>P.cleanArt(r.art)===v); c.lines[i].conf = ref?'exakt':(R.length?'unbekannt':'manuell'); if(ref){ c.lines[i].dim=ref.dim; } } else v = v===''?null:+v; c.lines[i][k]=v; if(k==='art') inp.value=v; refreshSheet(); }; }); el.querySelector('[data-ldel]').onclick=()=>{ c.lines.splice(i,1); drawSheet(); }; });
   $('#shAddLine').onclick = () => { c.lines.push({art:'',raw:'',qty:null,ve:null,conf:'manuell'}); drawSheet(); setTimeout(()=>{ const el=$('#sh-art-'+(c.lines.length-1)); el&&el.focus(); },30); };
   $('#shClose').onclick = $('#shCancel').onclick = closeSheet;
   const del = $('#shDel'); if (del) del.onclick = () => { $('#shDelHost').innerHTML = `<div class="confirm"><b>Karton ${esc(c.nr||'')} wirklich löschen?</b><div class="row"><button id="shDelNo">Abbrechen</button><button class="danger" id="shDelYes">Löschen</button></div></div>`; $('#shDelNo').onclick=drawSheet; $('#shDelYes').onclick=()=>{ S.cartons=S.cartons.filter(x=>x.id!==c.id); thumbs.delete(c.id); idbDel(c.id); save(); closeSheet(); render(); toast('Karton gelöscht'); }; };
   const rot = $('#shRot'); if (rot) rot.onclick = () => runRecognition((sheet.rot+90)%360);
   const re = $('#shRetry'); if (re) re.onclick = () => runRecognition(sheet.rot);
   $('#shSave').onclick = () => {
+    document.querySelectorAll('[data-li]').forEach(el=>{ const i=+el.dataset.li; const l=c.lines[i]; if(!l) return; el.querySelectorAll('input').forEach(inp=>{ const k=inp.dataset.k, v=inp.value.trim(); if(k==='art'){ const a=P.cleanArt(v); if(a!==l.art){ l.art=a; const ref=refs().find(r=>P.cleanArt(r.art)===a); l.conf = ref?'exakt':(refs().length?'unbekannt':'manuell'); if(ref) l.dim=ref.dim; } } else l[k] = v===''?null:+v; }); });
+    ['shPal:pal','shNr:nr','shPaket:paket','shAuftrag:auftrag'].forEach(x=>{ const [id,k]=x.split(':'); const el=$('#'+id); if(el) c[k]=el.value.trim(); });
     c.lines = c.lines.filter(l=>l.art || l.qty);
     c.ts = c.ts || Date.now();
     if (sheet.existing){ const i=S.cartons.findIndex(x=>x.id===c.id); S.cartons[i]=c; } else S.cartons.push(c);
     if (sheet.thumb){ thumbs.set(c.id, sheet.thumb); idbPut(c.id, sheet.thumb); }
     if (S.demo) S.demo = false;
-    save(); const nr=c.nr; closeSheet(); render(); toast(`Karton ${nr||''} gespeichert`);
+    save(); const nr=c.nr; closeSheet(); render(); toast(`Karton ${nr||''} gespeichert${c.pal?' · Palette '+c.pal:''}`);
   };
 }
 async function runRecognition(rot){
@@ -823,7 +871,7 @@ async function runRecognition(rot){
   if (sheet){ sheet.busy = false; drawSheet(); }
 }
 async function newCartonFromFile(file){
-  openSheet({ id: uid(), nr: nextNr(), paket:'', auftrag:'', codes:[], lines:[], ts:0 }, false, file);
+  openSheet({ id: uid(), nr: nextNr(), pal: S.palette||'', paket:'', auftrag:'', codes:[], lines:[], ts:0 }, false, file);
   await runRecognition(0);
 }
 $('#camInput').onchange = e => { const f = e.target.files[0]; e.target.value=''; if (f) newCartonFromFile(f); };
@@ -835,7 +883,7 @@ $('#galInput').onchange = async e => {
   let i=0;
   for (const f of files){
     try { const r = await readLabel(f, 0, p=>pr.set((i+p)/files.length, `Foto ${i+1} von ${files.length}`));
-      const c = { id: uid(), nr: '', paket: r.head.paket, auftrag: r.head.auftrag, codes: r.codes, lines: r.lines, ts: Date.now() + i };
+      const c = { id: uid(), nr: '', pal: S.palette||'', paket: r.head.paket, auftrag: r.head.auftrag, codes: r.codes, lines: r.lines, ts: Date.now() + i };
       S.cartons.push(c); thumbs.set(c.id, r.thumb); idbPut(c.id, r.thumb);
     } catch(err){ toast('Foto ' + (i+1) + ' nicht lesbar'); }
     i++; pr.set(i/files.length);
@@ -843,7 +891,7 @@ $('#galInput').onchange = async e => {
   if (S.demo) S.demo=false;
   pr.done(); save(); render(); toast(`${files.length} Fotos erfasst. Bitte Kartonnummern nachtragen.`);
 };
-$('#manualCarton').onclick = () => openSheet({ id: uid(), nr: nextNr(), paket:'', auftrag:'', codes:[], lines:[{art:'',raw:'',qty:null,ve:null,conf:'manuell'}], ts:0 }, false, null);
+$('#manualCarton').onclick = () => openSheet({ id: uid(), nr: nextNr(), pal: S.palette||'', paket:'', auftrag:'', codes:[], lines:[{art:'',raw:'',qty:null,ve:null,conf:'manuell'}], ts:0 }, false, null);
 
 // ---------------- PDF / Bilder für Unterlagen ----------------
 async function pdfToTexts(file, onP){
@@ -958,10 +1006,21 @@ $('#resetBtn').onclick = () => {
 function exportRows(){
   const hasOrder = S.order.rows.length>0;
   const byArt = new Map((S.note.rows||[]).map(n=>[P.cleanArt(n.art), n]));
-  return reconcile().map(r=>{ const n = byArt.get(P.cleanArt(r.art)) || {}; const o = { 'Pos.':n.pos||'', 'EAN':n.ean||'', 'Artikelnummer':r.art, 'Abmessung':r.dim, 'Bezeichnung':r.text, 'VE':r.ve }; if (hasOrder) o['Bestellt Stk']=r.bestellt; return Object.assign(o, { 'Lieferschein Stk':r.lieferschein, 'Kartons Stk':r.ist, 'Pakete':r.pakete!=null?Math.round(r.pakete*100)/100:null, 'Differenz Stk': (r.lieferschein??r.bestellt)!=null ? r.ist-(r.lieferschein??r.bestellt) : null, 'Status':r.status, 'In Kartons':r.kartons.join(', ') }); });
+  const PL = placements();
+  return reconcile().map(r=>{ const n = byArt.get(P.cleanArt(r.art)) || {}; const o = { 'Pos.':n.pos||'', 'EAN':n.ean||'', 'Artikelnummer':r.art, 'Abmessung':r.dim, 'Bezeichnung':r.text, 'VE':r.ve }; if (hasOrder) o['Bestellt Stk']=r.bestellt; return Object.assign(o, { 'Lieferschein Stk':r.lieferschein, 'Kartons Stk':r.ist, 'Pakete':r.pakete!=null?Math.round(r.pakete*100)/100:null, 'Differenz Stk': (r.lieferschein??r.bestellt)!=null ? r.ist-(r.lieferschein??r.bestellt) : null, 'Status':r.status, 'Paletten':[...new Set((PL.get(P.cleanArt(r.art))||[]).map(x=>x.pal||'?'))].join(', '), 'In Kartons':r.kartons.join(', ') }); });
 }
 function cartonRows(){
-  const out=[]; S.cartons.forEach(c=>c.lines.forEach(l=>out.push({ 'Karton':c.nr, 'Paketnummer':c.paket, 'Auftragsnr.':c.auftrag, 'Strichcode':(c.codes||[]).join(' '), 'Artikelnummer':l.art, 'Gelesen als':l.raw, 'Menge Stk':l.qty, 'VE':l.ve||veOf(l.art), 'Erkennung':l.conf }))); return out;
+  const out=[]; [...S.cartons].sort((a,b)=>palSort(a.pal||'',b.pal||'')||palSort(a.nr||'',b.nr||'')).forEach(c=>c.lines.forEach(l=>out.push({ 'Palette':c.pal||'', 'Karton':c.nr, 'Paketnummer':c.paket, 'Auftragsnr.':c.auftrag, 'Strichcode':(c.codes||[]).join(' '), 'Artikelnummer':l.art, 'Gelesen als':l.raw, 'Menge Stk':l.qty, 'VE':l.ve||veOf(l.art), 'Erkennung':l.conf }))); return out;
+}
+function storageRows(){
+  // Einlagerliste: pro Artikel jede Fundstelle (Palette, Karton) mit Paketen
+  const R = new Map(refs().map(r=>[P.cleanArt(r.art), r]));
+  const out = [];
+  [...placements().entries()].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([k,xs])=>{
+    const r = R.get(k) || {}; const art = r.art || k;
+    xs.forEach(x=>out.push({ 'Artikelnummer':art, 'Abmessung':r.dim||'', 'Bezeichnung':r.text||'', 'VE':r.ve||null, 'Palette':x.pal||'', 'Karton':x.nr||'', 'Stk':x.qty, 'Pakete':x.pak!=null?Math.round(x.pak*100)/100:null, 'Erledigt':'' }));
+  });
+  return out;
 }
 function stamp(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
 async function offerFile(filename, data){
@@ -977,6 +1036,7 @@ $('#expXlsx').onclick = async () => {
   if (!window.XLSX){ toast('Excel-Modul nicht geladen, CSV nutzen.'); return; }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportRows()), 'Abgleich');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(storageRows()), 'Einlagerung');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cartonRows()), 'Kartons');
   const L = (S.note.rows||[]).map(n=>({Pos:n.pos, EAN:n.ean, Artikelnummer:n.art, Abmessung:n.dim, 'Liefermenge Stk':n.menge, VE:n.ve, Bezeichnung:n.text}));
   if (L.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(L), 'Lieferschein');
