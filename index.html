@@ -171,6 +171,7 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;he
         <button class="ghost" id="noteAdd">+ Position</button>
       </div>
       <div id="noteHead" class="small muted"></div>
+      <div id="noteWarn"></div>
       <div id="noteProg"></div>
       <div id="noteList"></div>
     </div>
@@ -354,33 +355,116 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;he
   }
 
   // ---------- Lieferschein ----------
+  // Robust gegen abgeschnittene Positionsnummern, verlesene Schlüsselwörter und Seitenumbrüche.
+  const PAGE_MARK = '@@@SEITENWECHSEL@@@';
+  const STK_RE = /(\d{1,3}(?:[.,]\d{3})+|\d+)(?:,\d+)?\s*[S5][tli1][kK]\b/g;
+  function stkNum(s) { return parseInt(String(s).replace(/[.,]/g, ''), 10); }
+  // Ein O direkt neben einer Ziffer ist in Artikelnummern fast immer eine Null.
+  // Lieferanten-Schema: 6 Zeichen + Buchstabe (S/V) + 3 Ziffern, z. B. 009603S030 oder Q09161V138.
+  // An der 7. Stelle gelesene 5/8 sind dort immer ein S.
+  function fixO(a) {
+    a = a.replace(/O(?=\d)|(?<=\d)O/g, '0');
+    return a.replace(/^([A-Z0-9]{6})[58]([SV][0-9]{3}-)/, '$1$2').replace(/^([A-Z0-9]{6})[58]([0-9]{3}-)/, '$1S$2');
+  }
   function parseDeliveryNote(text) {
     const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const head = {};
+    const head = { seitenMap: {}, lieferungen: [] };
     const out = [];
-    let cur = null;
+    let cur = null, curLief = '', pageSeite = null, pageLief = '';
+    // Seiten pro Lieferschein merken (jede Lieferung hat ihre eigene Seitenzählung)
+    const flushPage = () => {
+      if (pageSeite) { const k = pageLief || curLief || '?'; const e = head.seitenMap[k] || (head.seitenMap[k] = { gesamt: 0, seiten: [] });
+        e.gesamt = Math.max(e.gesamt, pageSeite[1]); if (!e.seiten.includes(pageSeite[0])) e.seiten.push(pageSeite[0]); }
+      pageSeite = null; pageLief = '';
+    };
     lines.forEach(l => {
-      const lm = l.match(/Lieferung\s*[:;]?\s*(\d{5,})\s*,?\s*(\d{1,2}\.\d{1,2}\.\d{2,4})?/i);
-      if (lm) { head.lieferung = lm[1]; if (lm[2]) head.datum = lm[2]; }
-      const pm = l.match(/^\s*(\d{1,4})\s+(\d{8,14})\b(.*)$/);
-      if (pm) {
+      if (l === PAGE_MARK) { flushPage(); return; }
+      const lm = l.match(/(?:Li)?e?ferung\s*[:;]?\s*(\d{5,})\s*,?\s*(\d{1,2}\.\d{1,2}\.\d{2,4})?/i);
+      if (lm && !/Liefermenge|Lieferart/i.test(l)) { curLief = pageLief = lm[1]; head.lieferung = head.lieferung || lm[1]; if (!head.lieferungen.includes(lm[1])) head.lieferungen.push(lm[1]); if (lm[2] && !head.datum) head.datum = lm[2]; return; }
+      const ln = l.match(/Lieferschein\s*N\w?\.?\s*[:;]?\s*(\d{6,})/i);
+      if (ln) head.lsnr = head.lsnr || ln[1];
+      const sm = l.match(/Seite\s*(\d{1,3})\s*v\w{1,2}\s*(\d{1,3})/i);
+      if (sm) { const a = +sm[1], b = +sm[2]; if (a >= 1 && a <= b && b < 500) pageSeite = [a, b]; return; }
+      // Positionszeile: (Pos.) EAN … Abmessung … Mengen in Stk
+      const qs = [...l.matchAll(STK_RE)];
+      // EAN im vorderen Teil der Zeile; Positionsnummer = letzte kurze Zahl davor; Störzeichen erlaubt
+      const em = l.match(/^(.{0,30}?)\b(\d{8,14})\b(.*)$/);
+      const pm = em && !/[A-Za-zÄÖÜäöü]{3,}/.test(em[1]) ? [em[0], (em[1].match(/(\d{1,4})\D*$/) || [])[1], em[2], em[3]] : null;
+      if (pm && qs.length) {
         if (cur) out.push(cur);
         const rest = pm[3];
-        const qs = [...rest.matchAll(/(\d{1,3}(?:\.\d{3})+|\d+)(?:,\d+)?\s*St[kK]/g)].map(m => num(m[1]));
-        cur = { pos: pm[1], ean: pm[2], dim: dim(rest), bestellt: qs.length ? qs[0] : null, menge: qs.length ? qs[qs.length - 1] : null, ve: null, art: '', text: '' };
+        const q = [...rest.matchAll(STK_RE)].map(m => stkNum(m[1]));
+        let pos = (pm[1] && !/^0+$/.test(pm[1])) ? pm[1] : '';
+        const prev = [...out, cur].filter(Boolean).reverse().find(x => x.lief === curLief && /^\d+$/.test(x.pos));
+        if (pos && prev && +pos <= +prev.pos && String(+prev.pos + 10).endsWith(pos)) pos = String(+prev.pos + 10);
+        cur = { lief: curLief, pos, ean: pm[2], dim: dim(rest), bestellt: q.length ? q[0] : null, menge: q.length >= 3 ? q[q.length - 1] : (q.length === 2 && q[0] === q[1] ? q[1] : null), ve: null, art: '', text: '' };
         return;
       }
       if (!cur) return;
-      const am = l.match(/Unsere\s*Artikel\s*n?\w*\s*[:;.]?\s*([A-Z0-9][A-Z0-9 \-–—_]{6,})/i);
-      if (am) { cur.art = cleanArt(am[1].split(/\s{2,}/)[0]); return; }
-      const om = l.match(/Unsere\s*Auftrags\w*\s*[:;.]?\s*(\d{5,9})/i);
-      if (om) { cur.auftrag = om[1]; (head.auftraege = head.auftraege || []).includes(om[1]) || head.auftraege.push(om[1]); return; }
+      const am = l.match(/(?:Un\w{0,4}\s*)?Arti\w{0,4}\s*n\w{0,6}\s*[:;.]?\s*([A-Z0-9][A-Z0-9 \-–—_]{6,})/i);
+      if (am && !/Auftrag|Bestell/i.test(l)) { const a = fixO(cleanArt(am[1].split(/\s{2,}/)[0])); if (a.length >= 10) { if (cur.art && cur.art !== a) { out.push(cur); cur = { lief: curLief, pos: '', ean: '', dim: '', bestellt: null, menge: null, ve: null, art: a, text: '', lost: true }; } else cur.art = a; return; } }
+      const om = l.match(/Auftrags\w*\s*[:;.]?\s*(\d{5,9})/i);
+      if (om && !/Ihre/i.test(l)) { cur.auftrag = om[1]; (head.auftraege = head.auftraege || []).includes(om[1]) || head.auftraege.push(om[1]); return; }
+      if (!cur.art) { const an = l.match(ART_RE); if (an && !/[a-zäöü]{5,}/.test(l.replace(/Unsere|Artikel\w*/gi, ''))) { const a = fixO(cleanArt(`${an[1].replace(/ /g,'')}-${an[2]}-${an[3]}`)); if (a.length >= 10 && !/^\d+$/.test(a.replace(/-/g,''))) { cur.art = a; return; } } }
+      if (cur.vePending) { cur.vePending = false; const vn = l.match(/^[^\w]{0,14}(\d{1,5})\b/); if (vn && cur.ve == null) { cur.ve = parseInt(vn[1], 10); return; } }
       const vm = l.match(VE_RE);
       if (vm && cur.ve == null) cur.ve = parseInt(vm[1], 10);
+      else if (cur.ve == null && /[,;]\s*V\s?E?\s*[.:]?\s*$/.test(l)) cur.vePending = true;
+      if (!cur.dim) { const d = dim(l); if (d) cur.dim = d; }
       if (!cur.text && /[a-zäöü]{4,}/.test(l) && !/:/.test(l.slice(0, 25))) cur.text = l.slice(0, 120);
     });
     if (cur) out.push(cur);
-    return { head, rows: out };
+    out.forEach(r => delete r.vePending);
+    for (let i = out.length - 1; i >= 0; i--) { const x = out[i]; if (!x.lost) continue; const t = out.find(y => !y.lost && y.art && y.art.length >= 8 && x.art.startsWith(y.art) && x.art !== y.art); if (t) { t.art = x.art; out.splice(i, 1); } }
+    flushPage();
+    Object.values(head.seitenMap).forEach(e => e.seiten.sort((a, b) => a - b));
+    return { head, rows: out, warnings: noteWarnings(head, out) };
+  }
+  function noteWarnings(head, rows) {
+    const w = [];
+    const multi = Object.keys(head.seitenMap || {}).length > 1 || (head.lieferungen || []).length > 1;
+    Object.entries(head.seitenMap || {}).forEach(([k, e]) => {
+      const fehlt = []; for (let i = 1; i <= e.gesamt; i++) if (!e.seiten.includes(i)) fehlt.push(i);
+      if (fehlt.length) w.push(`${multi && k !== '?' ? 'Lieferung ' + k + ': ' : ''}Seite ${fehlt.join(', ')} von ${e.gesamt} nicht gefunden. Fehlt ein Blatt im Scan?`);
+    });
+    rows.forEach((r, i) => {
+      const nm = `${multi && r.lief ? 'Lief. ' + r.lief + ', ' : ''}Pos. ${r.pos || '?'}${r.dim ? ' (' + r.dim + ')' : ''}`;
+      if (r.lost) { w.push(`Artikel ${r.art}: Positionszeile nicht gelesen. Menge und VE bitte vom Papier nachtragen.`); return; }
+      if (!r.art) w.push(`${nm}: Artikelnummer nicht gelesen, bitte nachtragen.`);
+      if (r.menge == null) w.push(`${nm}: Liefermenge nicht gelesen.`);
+      if (!r.ve) w.push(`${nm}: VE nicht gelesen (wird vom Karton-Etikett übernommen).`);
+    });
+    // Lücken in Positionsnummern (meist 10er-Schritte)
+    const byLief = {}; rows.forEach(r => (byLief[r.lief || ''] = byLief[r.lief || ''] || []).push(r));
+    Object.entries(byLief).forEach(([k, rs]) => {
+      const ps = rs.map(r => parseInt(r.pos, 10)).filter(n => !isNaN(n) && n >= 10 && n % 10 === 0).sort((a, b) => a - b);
+      for (let i = 1; i < ps.length; i++) if (ps[i] - ps[i - 1] > 10 && ps[i] - ps[i - 1] <= 50) w.push(`${multi && k ? 'Lieferung ' + k + ': ' : ''}Zwischen Pos. ${ps[i - 1]} und ${ps[i]} fehlen Positionen.`);
+    });
+    return w;
+  }
+  // Zwei Lesungen derselben Seite(n) zusammenführen: Lücken füllen, fehlende Positionen ergänzen.
+  function mergeNotes(a, b) {
+    const rows = a.rows.map(r => Object.assign({}, r));
+    const eanClose = (x, y) => x && y && x.length >= 10 && y.length >= 10 && x.length === y.length && lev(x, y) <= 1;
+    b.rows.forEach(r => {
+      const sk = (x, y) => x && y && skel(x) === skel(y);
+      const pre = (x, y) => x && y && x.length >= 8 && y.length > x.length && skel(y).startsWith(skel(x));
+      const same = x => !x.lief || !r.lief || x.lief === r.lief;
+      let m = r.art && rows.find(x => same(x) && x.art && (cleanArt(x.art) === cleanArt(r.art) || sk(x.art, r.art) || pre(x.art, r.art) || pre(r.art, x.art)));
+      if (!m) m = rows.find(x => same(x) && eanClose(x.ean, r.ean));
+      if (!m && r.pos && r.dim) m = rows.find(x => same(x) && x.pos === r.pos && x.dim === r.dim);
+      if (m) { if (m.art && r.art && pre(m.art, r.art)) m.art = r.art; if (m.lost && !r.lost) { ['pos','ean','dim','menge','bestellt'].forEach(k => { if (r[k] != null && r[k] !== '') m[k] = r[k]; }); delete m.lost; } ['art', 'dim', 'menge', 'bestellt', 've', 'text', 'pos', 'ean', 'auftrag', 'lief'].forEach(k => { if ((m[k] == null || m[k] === '') && r[k] != null && r[k] !== '') m[k] = r[k]; }); if (m.ean && r.ean && m.ean.length < r.ean.length) m.ean = r.ean; }
+      else if (r.lost && rows.some(x => same(x) && x.art && lev(skel(x.art), skel(r.art)) <= 2)) { /* verlesene Dublette einer bekannten Position */ }
+      else if (r.art || (r.ean && r.ean.length >= 12)) rows.push(Object.assign({}, r));
+    });
+    // Platzhalter (Artikelnr. ohne Positionszeile) entfernen, wenn dieselbe Nummer jetzt einer echten Position gehört
+    for (let i = rows.length - 1; i >= 0; i--) { const x = rows[i]; if (x.lost && rows.some(y => y !== x && !y.lost && y.art && skel(y.art) === skel(x.art) && (!x.lief || !y.lief || x.lief === y.lief))) rows.splice(i, 1); }
+    const head = Object.assign({}, b.head, a.head);
+    head.seitenMap = {};
+    [a.head.seitenMap || {}, b.head.seitenMap || {}].forEach(mp => Object.entries(mp).forEach(([k, e]) => { const t = head.seitenMap[k] || (head.seitenMap[k] = { gesamt: 0, seiten: [] }); t.gesamt = Math.max(t.gesamt, e.gesamt); e.seiten.forEach(x => t.seiten.includes(x) || t.seiten.push(x)); t.seiten.sort((x, y) => x - y); }));
+    head.lieferungen = [...new Set([...(a.head.lieferungen || []), ...(b.head.lieferungen || [])])];
+    head.auftraege = [...new Set([...(a.head.auftraege || []), ...(b.head.auftraege || [])])];
+    return { head, rows, warnings: noteWarnings(head, rows) };
   }
 
   // ---------- Bestellung (generisch, aus Text) ----------
@@ -458,7 +542,7 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;he
     return (c.lines || []).map(l => cleanArt(l.art) + ':' + l.qty).sort().join('|');
   }
 
-  const api = { parseLabelHead, cleanArt, skel, lev, num, dim, parseLabel, parseDeliveryNote, parseOrderText, matchArticle, reconcile, cartonSignature, fmt };
+  const api = { PAGE_MARK, noteWarningsFor: noteWarnings, mergeNotes, parseLabelHead, cleanArt, skel, lev, num, dim, parseLabel, parseDeliveryNote, parseOrderText, matchArticle, reconcile, cartonSignature, fmt };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.WEParser = api;
 })(typeof self !== 'undefined' ? self : this);
 
@@ -561,8 +645,15 @@ function renderDocs(){
   $('#noteCount').textContent = n.length ? `${n.length} Positionen` : 'leer';
   $('#noteCount').className = 'pill ' + (n.length ? 'ok' : 'plain');
   const h = S.note.head || {};
-  $('#noteHead').innerHTML = (h.lieferung||h.datum||h.auftraege) ? [h.lieferung && 'Lieferung '+esc(h.lieferung), h.datum && 'vom '+esc(h.datum), h.auftraege && h.auftraege.length && 'Auftrag '+esc(h.auftraege.join(', '))].filter(Boolean).join(' · ') : '';
+  const lief = (h.lieferungen && h.lieferungen.length ? h.lieferungen : (h.lieferung && h.lieferung!=='Beispiel' ? [h.lieferung] : []));
+  const sm = h.seitenMap || {};
+  const liefTxt = lief.map(l => { const e = sm[l]; const cnt = n.filter(r=>r.lief===l).length; return `Lieferung ${esc(l)}${e ? ` (Seite ${e.seiten.join(', ')} von ${e.gesamt}` : ' ('}${e?', ':''}${cnt} Pos.)`; });
+  $('#noteHead').innerHTML = [h.lieferung==='Beispiel' && 'Beispiel', ...liefTxt, h.datum && 'vom '+esc(h.datum)].filter(Boolean).join(' · ');
+  // Hinweise neu berechnen, damit von Hand ergänzte Werte sie auflösen
+  const nw = n.length && S.note.raw ? P.noteWarningsFor(h, n) : [];
+  $('#noteWarn').innerHTML = nw.length ? `<div class="warnlist">${nw.map(t=>`<div class="${/fehlen|Seite/.test(t)?'bad':''}">${esc(t)}</div>`).join('')}</div>` : '';
   $('#noteList').innerHTML = n.length ? editRows(n, 'note') : `<div class="empty">Noch kein Lieferschein geladen.</div>`;
+  if (S.note.raw) $('#noteList').insertAdjacentHTML('beforeend', `<details style="margin-top:8px"><summary>Erkannter Rohtext (bei Lesefehlern hilfreich)</summary><pre class="raw" id="noteRaw">${esc(S.note.raw)}</pre></details>`);
   $('#expected').value = S.expected ?? '';
   bindEditRows();
 }
@@ -574,7 +665,7 @@ function editRows(rows, kind){
       <label class="f">${kind==='order' ? 'Menge ('+(r.unit==='VE'?'VE':'Stk')+')' : 'Liefermenge Stk'}<input type="number" inputmode="numeric" data-k="${qKey}" value="${esc(r[qKey])}" class="${r[qKey]==null||r[qKey]===''?'missing':''}" id="${kind}-q-${i}"></label>
       <label class="f">VE<input type="number" inputmode="numeric" data-k="ve" value="${esc(r.ve??'')}" id="${kind}-ve-${i}"></label>
       <button class="x" data-del aria-label="Position löschen">✕</button>
-      ${(r.dim||r.text) ? `<div class="meta">${r.dim?`<b class="mono">${esc(r.dim)}</b>`:''}<span>${esc((r.text||'').slice(0,90))}</span></div>`:''}
+      ${(r.dim||r.text||r.lief||r.pos) ? `<div class="meta">${kind==='note'&&(r.lief||r.pos)?`<span class="palchip">${r.lief?'Lief. '+esc(r.lief)+' · ':''}Pos. ${esc(r.pos||'?')}</span>`:''}${r.dim?`<b class="mono">${esc(r.dim)}</b>`:''}<span>${esc((r.text||'').slice(0,90))}</span></div>`:''}
     </div>`).join('') + `</div>`;
 }
 function bindEditRows(){
@@ -753,7 +844,7 @@ async function readLabel(file, rot, onP){
   let lines = P.parseLabel(text);
   let usedRot = rot;
   if (!lines.length){
-    for (const add of [90, 270]){
+    for (const add of [90, 270, 180]){
       const t2 = await ocr(toCanvas(src, (rot+add)%360, 2200, 'gray'), step(.5,.75,'Etikett gedreht? Versuche andere Ausrichtung'));
       const l2 = P.parseLabel(t2); if (l2.length){ text=t2; lines=l2; usedRot=(rot+add)%360; break; }
     }
@@ -894,51 +985,86 @@ $('#galInput').onchange = async e => {
 $('#manualCarton').onclick = () => openSheet({ id: uid(), nr: nextNr(), pal: S.palette||'', paket:'', auftrag:'', codes:[], lines:[{art:'',raw:'',qty:null,ve:null,conf:'manuell'}], ts:0 }, false, null);
 
 // ---------------- PDF / Bilder für Unterlagen ----------------
-async function pdfToTexts(file, onP){
-  if (!window.pdfjsLib) throw new Error('PDF-Leser nicht geladen.');
-  const buf = await file.arrayBuffer();
-  const doc = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
+// Ausrichtung einer Seite finden: kurz in allen vier Lagen anlesen, die mit den meisten echten Wörtern gewinnt.
+const NOTE_WORDS = /\b(Stk|Artikel\w*|Lieferung|Lieferschein|Gewicht|Paketnummer|Ursprung|Bestell\w*|Auftrags\w*|Chargen\w*|Seite|Abmessung|Liefermenge)\b/gi;
+async function detectRotation(src, onP){
+  let best = 0, bestScore = -1; const order = [0, 90, 270, 180];
+  for (let i=0;i<order.length;i++){
+    const rot = order[i];
+    const t = await ocr(toCanvas(src, rot, 1500, 'gray'), x => onP && onP((i + x)/order.length));
+    const score = (t.match(NOTE_WORDS) || []).length;
+    if (score > bestScore){ best = rot; bestScore = score; }
+    if (score >= 6) break;
+  }
+  return best;
+}
+// Liest alle Seiten. mode: 'gray' (Standard) oder 'thresh' (mehr Kontrast).
+// onlyScanned: nur gescannte Seiten/Fotos neu lesen (Textebene bleibt gleich).
+const rotCache = new Map();
+async function readSources(files, mode, onP){
+  // Seiten zählen für eine ehrliche Fortschrittsanzeige
+  const jobs = [];
+  for (const f of files){
+    if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)){
+      if (!window.pdfjsLib) throw new Error('PDF-Leser nicht geladen.');
+      const doc = await pdfjsLib.getDocument({ data: await f.arrayBuffer(), isEvalSupported: false }).promise;
+      for (let p=1; p<=doc.numPages; p++) jobs.push({ kind:'pdf', doc, p, name:f.name, key: f.name+'|'+f.size+'|'+f.lastModified+'|'+p });
+    } else jobs.push({ kind:'img', file:f, name:f.name, key: f.name+'|'+f.size+'|'+f.lastModified });
+  }
   const out = [];
-  for (let p=1; p<=doc.numPages; p++){
-    const page = await doc.getPage(p);
-    const tc = await page.getTextContent();
-    const items = tc.items.filter(it=>it.str && it.str.trim());
-    if (items.reduce((a,it)=>a+it.str.length,0) > 60){
-      const rows = new Map();
-      items.forEach(it=>{ const y = Math.round(it.transform[5]/3); if(!rows.has(y)) rows.set(y,[]); rows.get(y).push(it); });
-      const text = [...rows.entries()].sort((a,b)=>b[0]-a[0]).map(([,a])=>a.sort((x,y)=>x.transform[4]-y.transform[4]).map(i=>i.str).join(' ')).join('\n');
-      out.push(text); onP && onP(p/doc.numPages, `Seite ${p} von ${doc.numPages} (Textebene)`);
+  for (let k=0; k<jobs.length; k++){
+    const j = jobs[k], lab = jobs.length>1 ? `Seite ${k+1} von ${jobs.length}` : 'Seite';
+    const prog = x => onP && onP((k + 0.3 + 0.7*x)/jobs.length, `${lab}: ${mode==='thresh'?'zweiter Durchgang':'Texterkennung'}`);
+    const rotProg = x => onP && onP((k + 0.3*x)/jobs.length, `${lab}: Ausrichtung prüfen`);
+    if (j.kind==='pdf'){
+      const page = await j.doc.getPage(j.p);
+      const tc = await page.getTextContent();
+      const items = tc.items.filter(it=>it.str && it.str.trim());
+      if (items.reduce((a,it)=>a+it.str.length,0) > 60){
+        if (mode==='thresh') { out.push({ text:null, scanned:false }); continue; }
+        const rows = new Map();
+        items.forEach(it=>{ const y = Math.round(it.transform[5]/3); if(!rows.has(y)) rows.set(y,[]); rows.get(y).push(it); });
+        out.push({ text: [...rows.entries()].sort((a,b)=>b[0]-a[0]).map(([,a])=>a.sort((x,y)=>x.transform[4]-y.transform[4]).map(i=>i.str).join(' ')).join('\n'), scanned:false });
+        onP && onP((k+1)/jobs.length, `${lab} (Textebene)`);
+      } else {
+        const vp = page.getViewport({ scale: 2.4 });
+        const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        const rot = rotCache.has(j.key) ? rotCache.get(j.key) : await detectRotation(c, rotProg); rotCache.set(j.key, rot);
+        out.push({ text: await ocr(toCanvas(c, rot, 3000, mode), prog), scanned:true, rot });
+        c.width = c.height = 0;
+      }
     } else {
-      const vp = page.getViewport({ scale: 2.4 });
-      const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
-      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
-      const g = toCanvas(c, 0, 3000, 'gray');
-      out.push(await ocr(g, x=> onP && onP((p-1+x)/doc.numPages, `Seite ${p} von ${doc.numPages}: Texterkennung`)));
+      const src = await loadBitmap(j.file);
+      const rot = rotCache.has(j.key) ? rotCache.get(j.key) : await detectRotation(src, rotProg); rotCache.set(j.key, rot);
+      out.push({ text: await ocr(toCanvas(src, rot, 3000, mode), prog), scanned:true, rot });
+      if (src.close) src.close();
     }
   }
   return out;
 }
-async function filesToText(files, onP){
-  const texts = [];
-  for (let i=0;i<files.length;i++){
-    const f = files[i], sub = (a)=> (x,l)=> onP((i + x)/files.length, l);
-    if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)) texts.push(...await pdfToTexts(f, sub()));
-    else { const src = await loadBitmap(f); texts.push(await ocr(toCanvas(src,0,2600,'gray'), x=>onP((i+x)/files.length, `Bild ${i+1}: Texterkennung`))); }
-  }
-  return texts.join('\n');
-}
+async function filesToText(files, onP){ return (await readSources(files, 'gray', onP)).map(x=>x.text).join('\n'); }
+function needsSecondPass(r){ return !r.rows.length || r.rows.some(x=>!x.art || x.menge==null || !x.ve); }
 $('#notePdf').onchange = async e => {
   const files=[...e.target.files]; e.target.value=''; if(!files.length) return;
   const pr = progressEl($('#noteProg'), 'Lese Lieferschein');
   try {
-    const text = await filesToText(files, (p,l)=>pr.set(p,l));
-    const r = P.parseDeliveryNote(text);
+    const first = await readSources(files, 'gray', (p,l)=>pr.set(p, l));
+    const J = '\n' + P.PAGE_MARK + '\n';
+    let text = first.map(x=>x.text).join(J);
+    let r = P.parseDeliveryNote(text);
+    if (first.some(x=>x.scanned) && needsSecondPass(r)){
+      // Lücken: gescannte Seiten mit mehr Kontrast erneut lesen und zusammenführen
+      const second = await readSources(files, 'thresh', (p,l)=>pr.set(p, l));
+      const text2 = second.map((x,i)=>x.text==null ? first[i].text : x.text).join(J);
+      r = P.mergeNotes(r, P.parseDeliveryNote(text2));
+      text += '\n\n--- 2. Durchgang (mehr Kontrast) ---\n' + text2;
+    }
     pr.done();
     if (!r.rows.length){ $('#noteProg').innerHTML = `<div class="banner err"><p>Keine Positionen gefunden. Erwartet werden Zeilen wie „10  4012345678901  3,5 x 35  10.000 Stk …“ und „Unsere Artikelnummer: …“. Positionen lassen sich auch von Hand ergänzen.</p></div><details><summary>Erkannter Rohtext</summary><pre class="raw">${esc(text)}</pre></details>`; return; }
     if (S.demo) clearDemo();
-    S.note = { rows: r.rows, head: r.head, source: files.map(f=>f.name).join(', ') };
-    const noArt = r.rows.filter(x=>!x.art).length;
-    save(); render(); toast(`${r.rows.length} Positionen gelesen${noArt?`, ${noArt} ohne Artikelnummer`:''}`);
+    S.note = { rows: r.rows, head: r.head, warnings: r.warnings, source: files.map(f=>f.name).join(', '), raw: text.split(P.PAGE_MARK).join('— Seitenwechsel —') };
+    save(); render(); toast(`${r.rows.length} Positionen gelesen${r.warnings.length?`, ${r.warnings.length} Hinweise`:''}`);
   } catch(err){ pr.done(); $('#noteProg').innerHTML = `<div class="banner err"><p>${esc(err.message||err)}</p></div>`; }
 };
 $('#orderPdf').onchange = async e => {
@@ -1038,7 +1164,7 @@ $('#expXlsx').onclick = async () => {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportRows()), 'Abgleich');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(storageRows()), 'Einlagerung');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cartonRows()), 'Kartons');
-  const L = (S.note.rows||[]).map(n=>({Pos:n.pos, EAN:n.ean, Artikelnummer:n.art, Abmessung:n.dim, 'Liefermenge Stk':n.menge, VE:n.ve, Bezeichnung:n.text}));
+  const L = (S.note.rows||[]).map(n=>({Lieferung:n.lief||'', Pos:n.pos, EAN:n.ean, Artikelnummer:n.art, Abmessung:n.dim, 'Liefermenge Stk':n.menge, VE:n.ve, Bezeichnung:n.text}));
   if (L.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(L), 'Lieferschein');
   const buf = XLSX.write(wb, { type:'array', bookType:'xlsx' });
   await offerFile(`Wareneingang_${S.note.head&&S.note.head.lieferung||'Lieferung'}_${stamp()}.xlsx`, new Blob([buf]));
