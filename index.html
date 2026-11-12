@@ -357,28 +357,41 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;he
   // ---------- Lieferschein ----------
   // Robust gegen abgeschnittene Positionsnummern, verlesene Schlüsselwörter und Seitenumbrüche.
   const PAGE_MARK = '@@@SEITENWECHSEL@@@';
-  const STK_RE = /(\d{1,3}(?:[.,]\d{3})+|\d+)(?:,\d+)?\s*[S5][tli1][kK]\b/g;
+  const STK_RE = /(\d{1,3}(?:[.,]\d{3})+|\d+)(?:,\d+)?\s*[Ss5][tli1][kK]\b/g;
   function stkNum(s) { return parseInt(String(s).replace(/[.,]/g, ''), 10); }
   // Ein O direkt neben einer Ziffer ist in Artikelnummern fast immer eine Null.
   // Lieferanten-Schema: 6 Zeichen + Buchstabe (S/V) + 3 Ziffern, z. B. 009603S030 oder Q09161V138.
   // An der 7. Stelle gelesene 5/8 sind dort immer ein S.
+  // „V“ wird von Scannern gern als „1/“ oder „\/“ gelesen; Endziffer 1 als l, I oder |
+  function rawArtFix(s) { return String(s).replace(/[1lI|]\/(?=\d)/g, 'V').replace(/\\\//g, 'V').replace(/-\s*[lI|!](?=\s|$)/g, '-1'); }
+  // Schema dieses Lieferanten: 6 Zeichen + Buchstabe + 3 Ziffern - Mittelteil - Prüfziffer
+  function wellFormed(a) { return /^[A-Z0-9]{6}[A-Z][0-9]{3}-[0-9A-Z]{6,9}-[0-9]$/.test(cleanArt(a)); }
   function fixO(a) {
     a = a.replace(/O(?=\d)|(?<=\d)O/g, '0');
     return a.replace(/^([A-Z0-9]{6})[58]([SV][0-9]{3}-)/, '$1$2').replace(/^([A-Z0-9]{6})[58]([0-9]{3}-)/, '$1S$2');
   }
   function parseDeliveryNote(text) {
+    // Ligaturen aus PDF-Textebenen zurückübersetzen (ti, ft, tt, ff, fi, fl)
+    text = String(text).replace(/\s?Ɵ\s?/g, 'ti').replace(/\s?Ō\s?/g, 'ft').replace(/\s?Ʃ\s?/g, 'tt')
+      .replace(/ﬀ/g, 'ff').replace(/ﬁ/g, 'fi').replace(/ﬂ/g, 'fl').replace(/ﬃ/g, 'ffi').replace(/ﬄ/g, 'ffl').replace(/ﬅ|ﬆ/g, 'st');
     const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const head = { seitenMap: {}, lieferungen: [] };
     const out = [];
-    let cur = null, curLief = '', pageSeite = null, pageLief = '';
+    let cur = null, curLief = '', pageSeite = null, pageLief = '', pageIdx = 0, pageFooter = false;
+    head.fussSeiten = 0;
     // Seiten pro Lieferschein merken (jede Lieferung hat ihre eigene Seitenzählung)
     const flushPage = () => {
-      if (pageSeite) { const k = pageLief || curLief || '?'; const e = head.seitenMap[k] || (head.seitenMap[k] = { gesamt: 0, seiten: [] });
+      if (pageSeite) { const k = pageLief || curLief || '?'; const e = head.seitenMap[k] || (head.seitenMap[k] = { gesamt: 0, seiten: [], ohneNr: 0 });
         e.gesamt = Math.max(e.gesamt, pageSeite[1]); if (!e.seiten.includes(pageSeite[0])) e.seiten.push(pageSeite[0]); }
-      pageSeite = null; pageLief = '';
+      else if (!pageLief && pageFooter) head.fussSeiten++;
+      else if (pageLief) { const e = head.seitenMap[pageLief] || (head.seitenMap[pageLief] = { gesamt: 0, seiten: [], ohneNr: 0 }); e.ohneNr = (e.ohneNr || 0) + 1; }
+      pageSeite = null; pageLief = ''; pageFooter = false; pageIdx++;
     };
-    lines.forEach(l => {
-      if (l === PAGE_MARK) { flushPage(); return; }
+    lines.forEach(l0 => {
+      if (l0 === PAGE_MARK) { flushPage(); return; }
+      // Typische Fehler aus Scanner-Texterkennung: fehlende „ti“/„ft“-Ligaturen, O statt 0 vor Stk
+      const l = l0.replace(/\bAr\s+kel/gi, 'Artikel').replace(/\bAu\s+rag/gi, 'Auftrag').replace(/\b[OoD](?=\s*[Ss5][tli1][kK]\b)/g, '0');
+      if (/Lieferart|Gesch\w{0,3}\s?\w{0,3}bedingungen|Sonderanfer/i.test(l)) pageFooter = true;
       const lm = l.match(/(?:Li)?e?ferung\s*[:;]?\s*(\d{5,})\s*,?\s*(\d{1,2}\.\d{1,2}\.\d{2,4})?/i);
       if (lm && !/Liefermenge|Lieferart/i.test(l)) { curLief = pageLief = lm[1]; head.lieferung = head.lieferung || lm[1]; if (!head.lieferungen.includes(lm[1])) head.lieferungen.push(lm[1]); if (lm[2] && !head.datum) head.datum = lm[2]; return; }
       const ln = l.match(/Lieferschein\s*N\w?\.?\s*[:;]?\s*(\d{6,})/i);
@@ -389,20 +402,22 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;he
       const qs = [...l.matchAll(STK_RE)];
       // EAN im vorderen Teil der Zeile; Positionsnummer = letzte kurze Zahl davor; Störzeichen erlaubt
       const em = l.match(/^(.{0,30}?)\b(\d{8,14})\b(.*)$/);
-      const pm = em && !/[A-Za-zÄÖÜäöü]{3,}/.test(em[1]) ? [em[0], (em[1].match(/(\d{1,4})\D*$/) || [])[1], em[2], em[3]] : null;
+      let pm = em && !/[A-Za-zÄÖÜäöü]{3,}/.test(em[1]) ? [em[0], (em[1].match(/(\d{1,4})\D*$/) || [])[1], em[2], em[3]] : null;
+      if (!pm && qs.length >= 2) { const nm = l.match(/^[^\w]{0,6}(\d{2,4})\s+((?:\d[,.]\d\s*)?[xX×].*)$/); if (nm && +nm[1] % 10 === 0 && !/[A-Za-zÄÖÜäöü]{4,}/.test(nm[2])) pm = [l, nm[1], '', nm[2]]; }
       if (pm && qs.length) {
         if (cur) out.push(cur);
         const rest = pm[3];
         const q = [...rest.matchAll(STK_RE)].map(m => stkNum(m[1]));
         let pos = (pm[1] && !/^0+$/.test(pm[1])) ? pm[1] : '';
-        const prev = [...out, cur].filter(Boolean).reverse().find(x => x.lief === curLief && /^\d+$/.test(x.pos));
+        const pgS = pageSeite ? pageSeite[0] : null;
+        const prev = [...out, cur].filter(Boolean).reverse().find(x => x.lief === curLief && /^\d+$/.test(x.pos) && (x.pg === pageIdx || (pgS && x.pgS ? pgS > x.pgS : x.pg === pageIdx - 1 && pgS !== 1)));
         if (pos && prev && +pos <= +prev.pos && String(+prev.pos + 10).endsWith(pos)) pos = String(+prev.pos + 10);
-        cur = { lief: curLief, pos, ean: pm[2], dim: dim(rest), bestellt: q.length ? q[0] : null, menge: q.length >= 3 ? q[q.length - 1] : (q.length === 2 && q[0] === q[1] ? q[1] : null), ve: null, art: '', text: '' };
+        cur = { lief: curLief, pg: pageIdx, pgS: pageSeite ? pageSeite[0] : null, pos, ean: pm[2], dim: dim(rest), bestellt: q.length ? q[0] : null, menge: q.length >= 3 ? q[q.length - 1] : (q.length === 2 && q[0] === q[1] ? q[1] : null), ve: null, art: '', text: '' };
         return;
       }
       if (!cur) return;
-      const am = l.match(/(?:Un\w{0,4}\s*)?Arti\w{0,4}\s*n\w{0,6}\s*[:;.]?\s*([A-Z0-9][A-Z0-9 \-–—_]{6,})/i);
-      if (am && !/Auftrag|Bestell/i.test(l)) { const a = fixO(cleanArt(am[1].split(/\s{2,}/)[0])); if (a.length >= 10) { if (cur.art && cur.art !== a) { out.push(cur); cur = { lief: curLief, pos: '', ean: '', dim: '', bestellt: null, menge: null, ve: null, art: a, text: '', lost: true }; } else cur.art = a; return; } }
+      const am = l.match(/(?:Un\w{0,4}\s*)?Arti\w{0,4}\s*n\w{0,6}\s*[:;.]?\s*([A-Z0-9][A-Z0-9 \-–—_\/\\|]{6,})/i);
+      if (am && !/Auftrag|Bestell/i.test(l)) { const a = fixO(cleanArt(rawArtFix(am[1].split(/\s{2,}/)[0]))); if (a.length >= 10) { if (cur.art && cur.art !== a) { out.push(cur); cur = { lief: curLief, pos: '', ean: '', dim: '', bestellt: null, menge: null, ve: null, art: a, text: '', lost: true }; } else cur.art = a; return; } }
       const om = l.match(/Auftrags\w*\s*[:;.]?\s*(\d{5,9})/i);
       if (om && !/Ihre/i.test(l)) { cur.auftrag = om[1]; (head.auftraege = head.auftraege || []).includes(om[1]) || head.auftraege.push(om[1]); return; }
       if (!cur.art) { const an = l.match(ART_RE); if (an && !/[a-zäöü]{5,}/.test(l.replace(/Unsere|Artikel\w*/gi, ''))) { const a = fixO(cleanArt(`${an[1].replace(/ /g,'')}-${an[2]}-${an[3]}`)); if (a.length >= 10 && !/^\d+$/.test(a.replace(/-/g,''))) { cur.art = a; return; } } }
@@ -414,7 +429,7 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;he
       if (!cur.text && /[a-zäöü]{4,}/.test(l) && !/:/.test(l.slice(0, 25))) cur.text = l.slice(0, 120);
     });
     if (cur) out.push(cur);
-    out.forEach(r => delete r.vePending);
+    out.forEach(r => { delete r.vePending; delete r.pg; delete r.pgS; });
     for (let i = out.length - 1; i >= 0; i--) { const x = out[i]; if (!x.lost) continue; const t = out.find(y => !y.lost && y.art && y.art.length >= 8 && x.art.startsWith(y.art) && x.art !== y.art); if (t) { t.art = x.art; out.splice(i, 1); } }
     flushPage();
     Object.values(head.seitenMap).forEach(e => e.seiten.sort((a, b) => a - b));
@@ -423,14 +438,21 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;he
   function noteWarnings(head, rows) {
     const w = [];
     const multi = Object.keys(head.seitenMap || {}).length > 1 || (head.lieferungen || []).length > 1;
+    let fuss = head.fussSeiten || 0;
     Object.entries(head.seitenMap || {}).forEach(([k, e]) => {
+      if (!e.gesamt) return;
+      const vorhanden = e.seiten.length + (e.ohneNr || 0);
+      if (vorhanden < e.gesamt && fuss > 0) { const n = Math.min(fuss, e.gesamt - vorhanden); fuss -= n; e = Object.assign({}, e, { ohneNr: (e.ohneNr || 0) + n }); }
       const fehlt = []; for (let i = 1; i <= e.gesamt; i++) if (!e.seiten.includes(i)) fehlt.push(i);
-      if (fehlt.length) w.push(`${multi && k !== '?' ? 'Lieferung ' + k + ': ' : ''}Seite ${fehlt.join(', ')} von ${e.gesamt} nicht gefunden. Fehlt ein Blatt im Scan?`);
+      const pre = multi && k !== '?' ? 'Lieferung ' + k + ': ' : '';
+      const unbek = e.ohneNr || 0;
+      if (fehlt.length > unbek) w.push(unbek ? `${pre}Nur ${e.seiten.length + unbek} von ${e.gesamt} Seiten gefunden. Fehlt ein Blatt im Scan?` : `${pre}Seite ${fehlt.join(', ')} von ${e.gesamt} nicht gefunden. Fehlt ein Blatt im Scan?`);
     });
     rows.forEach((r, i) => {
       const nm = `${multi && r.lief ? 'Lief. ' + r.lief + ', ' : ''}Pos. ${r.pos || '?'}${r.dim ? ' (' + r.dim + ')' : ''}`;
       if (r.lost) { w.push(`Artikel ${r.art}: Positionszeile nicht gelesen. Menge und VE bitte vom Papier nachtragen.`); return; }
       if (!r.art) w.push(`${nm}: Artikelnummer nicht gelesen, bitte nachtragen.`);
+      else if (!wellFormed(r.art)) w.push(`${nm}: Artikelnummer „${r.art}“ wirkt verlesen. Bitte mit dem Papier prüfen. Beim Erfassen des Kartons erscheint hier ggf. ein Vorschlag vom Etikett.`);
       if (r.menge == null) w.push(`${nm}: Liefermenge nicht gelesen.`);
       if (!r.ve) w.push(`${nm}: VE nicht gelesen (wird vom Karton-Etikett übernommen).`);
     });
@@ -461,8 +483,9 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;he
     for (let i = rows.length - 1; i >= 0; i--) { const x = rows[i]; if (x.lost && rows.some(y => y !== x && !y.lost && y.art && skel(y.art) === skel(x.art) && (!x.lief || !y.lief || x.lief === y.lief))) rows.splice(i, 1); }
     const head = Object.assign({}, b.head, a.head);
     head.seitenMap = {};
-    [a.head.seitenMap || {}, b.head.seitenMap || {}].forEach(mp => Object.entries(mp).forEach(([k, e]) => { const t = head.seitenMap[k] || (head.seitenMap[k] = { gesamt: 0, seiten: [] }); t.gesamt = Math.max(t.gesamt, e.gesamt); e.seiten.forEach(x => t.seiten.includes(x) || t.seiten.push(x)); t.seiten.sort((x, y) => x - y); }));
+    [a.head.seitenMap || {}, b.head.seitenMap || {}].forEach((mp, idx) => Object.entries(mp).forEach(([k, e]) => { const t = head.seitenMap[k] || (head.seitenMap[k] = { gesamt: 0, seiten: [], ohneNr: 0 }); t.gesamt = Math.max(t.gesamt, e.gesamt); if (idx === 0) t.ohneNr = e.ohneNr || 0; e.seiten.forEach(x => t.seiten.includes(x) || t.seiten.push(x)); t.seiten.sort((x, y) => x - y); }));
     head.lieferungen = [...new Set([...(a.head.lieferungen || []), ...(b.head.lieferungen || [])])];
+    head.fussSeiten = Math.max(a.head.fussSeiten || 0, b.head.fussSeiten || 0);
     head.auftraege = [...new Set([...(a.head.auftraege || []), ...(b.head.auftraege || [])])];
     return { head, rows, warnings: noteWarnings(head, rows) };
   }
@@ -542,7 +565,7 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;he
     return (c.lines || []).map(l => cleanArt(l.art) + ':' + l.qty).sort().join('|');
   }
 
-  const api = { PAGE_MARK, noteWarningsFor: noteWarnings, mergeNotes, parseLabelHead, cleanArt, skel, lev, num, dim, parseLabel, parseDeliveryNote, parseOrderText, matchArticle, reconcile, cartonSignature, fmt };
+  const api = { fixO, wellFormed, rawArtFix, PAGE_MARK, noteWarningsFor: noteWarnings, mergeNotes, parseLabelHead, cleanArt, skel, lev, num, dim, parseLabel, parseDeliveryNote, parseOrderText, matchArticle, reconcile, cartonSignature, fmt };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.WEParser = api;
 })(typeof self !== 'undefined' ? self : this);
 
@@ -647,11 +670,18 @@ function renderDocs(){
   const h = S.note.head || {};
   const lief = (h.lieferungen && h.lieferungen.length ? h.lieferungen : (h.lieferung && h.lieferung!=='Beispiel' ? [h.lieferung] : []));
   const sm = h.seitenMap || {};
-  const liefTxt = lief.map(l => { const e = sm[l]; const cnt = n.filter(r=>r.lief===l).length; return `Lieferung ${esc(l)}${e ? ` (Seite ${e.seiten.join(', ')} von ${e.gesamt}` : ' ('}${e?', ':''}${cnt} Pos.)`; });
+  const nwAll = n.length && S.note.raw ? P.noteWarningsFor(h, n) : [];
+  const liefTxt = lief.map(l => { const e = sm[l]; const cnt = n.filter(r=>r.lief===l).length;
+    const fehlt = e && e.gesamt && nwAll.some(w => w.includes(l) && /Seite/.test(w));
+    return `Lieferung ${esc(l)} (${e && e.gesamt ? (fehlt ? `${e.seiten.length + (e.ohneNr||0)} von ${e.gesamt} Seiten, ` : `${e.gesamt} von ${e.gesamt} Seiten, `) : ''}${cnt} Pos.)`; });
   $('#noteHead').innerHTML = [h.lieferung==='Beispiel' && 'Beispiel', ...liefTxt, h.datum && 'vom '+esc(h.datum)].filter(Boolean).join(' · ');
   // Hinweise neu berechnen, damit von Hand ergänzte Werte sie auflösen
   const nw = n.length && S.note.raw ? P.noteWarningsFor(h, n) : [];
-  $('#noteWarn').innerHTML = nw.length ? `<div class="warnlist">${nw.map(t=>`<div class="${/fehlen|Seite/.test(t)?'bad':''}">${esc(t)}</div>`).join('')}</div>` : '';
+  const vs = Object.entries(S.note.vorschlag||{}).filter(([old])=>n.some(r=>r.art===old)).map(([old,e])=>{ const best = Object.entries(e).sort((a,b)=>b[1]-a[1])[0]; const r = n.find(x=>x.art===old); return {old, neu:best[0], cnt:best[1], r}; });
+  const vsHtml = vs.map((v,i)=>`<div class="confirm" style="background:var(--info-soft);border-color:transparent"><span class="small">${v.r&&v.r.lief?'Lief. '+esc(v.r.lief)+', ':''}Pos. ${esc(v.r&&v.r.pos||'?')}: Im Lieferschein steht <b class="mono">${esc(v.old)}</b>, auf dem Karton-Etikett <b class="mono">${esc(v.neu)}</b>${v.cnt>1?' ('+v.cnt+'× gelesen)':''}. Bitte mit dem Papier vergleichen.</span><div class="row"><button class="primary" data-vs="${i}">Etikett-Nummer übernehmen</button><button data-vsno="${i}">Verwerfen</button></div></div>`).join('');
+  $('#noteWarn').innerHTML = vsHtml + (nw.length ? `<div class="warnlist">${nw.map(t=>`<div class="${/fehlen|Seite/.test(t)?'bad':''}">${esc(t)}</div>`).join('')}</div>` : '');
+  document.querySelectorAll('[data-vs]').forEach(b=> b.onclick = () => { const v = vs[+b.dataset.vs]; replaceArt(v.old, v.neu); save(); render(); toast('Artikelnummer übernommen'); });
+  document.querySelectorAll('[data-vsno]').forEach(b=> b.onclick = () => { const v = vs[+b.dataset.vsno]; delete S.note.vorschlag[v.old]; save(); render(); });
   $('#noteList').innerHTML = n.length ? editRows(n, 'note') : `<div class="empty">Noch kein Lieferschein geladen.</div>`;
   if (S.note.raw) $('#noteList').insertAdjacentHTML('beforeend', `<details style="margin-top:8px"><summary>Erkannter Rohtext (bei Lesefehlern hilfreich)</summary><pre class="raw" id="noteRaw">${esc(S.note.raw)}</pre></details>`);
   $('#expected').value = S.expected ?? '';
@@ -832,7 +862,31 @@ function makeThumb(src, rot){ const c = toCanvas(src, rot, 360, 'raw'); return c
 async function barcodes(src){
   try { if (!('BarcodeDetector' in window)) return []; const bd = new BarcodeDetector(); const r = await bd.detect(src); return [...new Set(r.map(x=>x.rawValue).filter(Boolean))]; } catch(e){ return []; }
 }
+// Kaputte Lieferschein-Nummer: saubere Etikett-Nummer als Vorschlag merken (nie automatisch überschreiben,
+// denn auch das Etikett kann verlesen sein). Mehrfach gelesene Vorschläge zählen mehr.
+function suggestFromLabel(parsed){
+  let neu = false;
+  parsed.forEach(l=>{
+    const raw = P.fixO(P.cleanArt(l.raw));
+    if (!P.wellFormed(raw)) return;
+    const R = refs(); if (R.some(r=>P.cleanArt(r.art)===raw)) return;
+    const d = R.map(r=>({ r, d: P.lev(P.skel(raw), P.skel(r.art)) })).sort((a,b)=>a.d-b.d);
+    if (!d.length || d[0].d > 2 || (d[1] && d[1].d <= d[0].d) || P.wellFormed(d[0].r.art)) return;
+    if (raw.split('-')[1] !== P.cleanArt(d[0].r.art).split('-')[1]) return;
+    if (l.dim && d[0].r.dim && l.dim.replace(/\s/g,'') !== String(d[0].r.dim).replace(/\s/g,'')) return;
+    const v = S.note.vorschlag = S.note.vorschlag || {};
+    const e = v[d[0].r.art] = v[d[0].r.art] || {};
+    e[raw] = (e[raw] || 0) + 1; neu = true;
+  });
+  if (neu){ save(); setTimeout(()=>toast('Korrekturvorschlag für den Lieferschein unter „Unterlagen“'), 300); }
+}
+function replaceArt(old, neu){
+  const fix = arr => (arr||[]).forEach(x=>{ if (x.art===old) x.art = neu; });
+  fix(S.note.rows); fix(S.order.rows); S.cartons.forEach(c=>fix(c.lines));
+  if (S.note.vorschlag) delete S.note.vorschlag[old];
+}
 function matchLines(parsed){
+  suggestFromLabel(parsed);
   const R = refs();
   return parsed.map(l=>{ const m = P.matchArticle(l.raw, l.dim, R); const ref = R.find(r=>r.art===m.art);
     return { art: m.conf==='unbekannt' ? P.cleanArt(l.raw) : m.art, raw:l.raw, dim:l.dim, qty:l.qty, ve: l.ve || (ref&&ref.ve) || null, conf: m.conf }; });
